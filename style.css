@@ -151,26 +151,31 @@ body {
   border-radius: var(--radius);
   padding: 2.5rem;
   width: 100%;
+  max-width: calc(var(--prose-w) + var(--note-w) + 3rem);
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  position: relative;
+}
+
+/* ── Prose column inside card ── */
+.prose, .objectives, .card > h1, .card > p.subtitle, .card > .chapter-nav {
+  min-width: 0;
+  flex: 1;
   max-width: var(--prose-w);
 }
 
-/* ── Prose column (alias, no extra constraints needed) ── */
-.prose-col { }
-
-/* ══════════════════════════════════════════════════
-   NOTES COLUMN
-   ══════════════════════════════════════════════════ */
-
+/* ── Notes column inside card ── */
 #notes-col {
   width: var(--note-w);
   flex-shrink: 0;
-  padding: 2.5rem 1rem 4rem 0.5rem;
   position: relative;
+  align-self: stretch;
 }
 
 .margin-note {
   position: absolute;
-  left: 0.5rem;
+  left: 0;
   right: 0;
   font-size: 0.78rem;
   line-height: 1.55;
@@ -200,6 +205,10 @@ body {
 
 @media (max-width: 1100px) {
   #notes-col { display: none; }
+  .card {
+    max-width: var(--prose-w);
+    display: block;
+  }
 }
 
 @media (max-width: 768px) {

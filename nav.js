@@ -41,10 +41,6 @@
     const sidebar = document.createElement('nav');
     sidebar.id = 'site-nav';
 
-    // Build notes column — collect any margin-note asides from the card
-    const notesCol = document.createElement('div');
-    notesCol.id = 'notes-col';
-
     // Build layout wrapper
     const layout = document.createElement('div');
     layout.className = 'site-layout';
@@ -54,26 +50,31 @@
       layout.appendChild(document.body.firstChild);
     }
 
-    // Prepend sidebar, append notes column
+    // Prepend sidebar into layout
     layout.insertBefore(sidebar, layout.firstChild);
-    layout.appendChild(notesCol);
 
     // Assemble: mobileBar + overlay + layout
     document.body.appendChild(mobileBar);
     document.body.appendChild(overlay);
     document.body.appendChild(layout);
 
-    // Move margin-note asides from .card into #notes-col
-    document.querySelectorAll('.card aside.margin-note').forEach(note => {
-      notesCol.appendChild(note);
-    });
+    // Inject #notes-col into .card and move margin-note asides into it
+    const card = document.querySelector('.card');
+    if (card) {
+      const notesCol = document.createElement('div');
+      notesCol.id = 'notes-col';
+      card.appendChild(notesCol);
 
-    // Position notes — run immediately, then again after KaTeX/fonts reflow
-    requestAnimationFrame(() => {
-      positionNotes(notesCol);
-      // Second pass after KaTeX has resized math blocks
-      setTimeout(() => positionNotes(notesCol), 500);
-    });
+      card.querySelectorAll('aside.margin-note').forEach(note => {
+        notesCol.appendChild(note);
+      });
+
+      // Position notes — rAF ensures layout is painted, 500ms covers KaTeX reflow
+      requestAnimationFrame(() => {
+        positionNotes(notesCol);
+        setTimeout(() => positionNotes(notesCol), 500);
+      });
+    }
 
     // Hamburger toggle
     document.getElementById('hamburger').addEventListener('click', () => {
