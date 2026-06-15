@@ -481,6 +481,7 @@
       currentStruct = btn.dataset.struct;
       const rho = parseFloat(document.getElementById('rho-slider').value);
       render(currentStruct, rho);
+      setTimeout(reportHeight, 50);
     });
   });
 
@@ -491,6 +492,7 @@
     const rho = parseFloat(this.value);
     display.textContent = rho.toFixed(2);
     render(currentStruct, rho);
+    setTimeout(reportHeight, 50);
   });
 
   /* ── Init ── */
@@ -499,7 +501,6 @@
   display.textContent = initRho.toFixed(2);
   render(currentStruct, initRho);
 
-  // Report height to parent once after render settles
   function reportHeight() {
     const h = document.getElementById('app').offsetHeight;
     window.parent.postMessage({ iframeHeight: h, iframeId: 'widget_2_3_2' }, '*');

@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figure 2.4.1 — Multilevel Decomposition</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    .w-root { font-family: sans-serif; }
+
+    /* ── Step tabs ── */
+    .steps {
+      display: flex; gap: 0; margin-bottom: 0.9rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
+    }
+    .step-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      gap: 2px; padding: 0.5rem 0.25rem;
+      background: transparent; border: none;
+      border-right: 1px solid var(--border);
+      cursor: pointer; transition: background 0.13s;
+    }
+    .step-btn:last-child { border-right: none; }
+    .step-btn:hover:not(.active) { background: var(--surface-2); }
+    .step-btn.active { background: var(--blue-bg); }
+    .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      background: var(--border); color: var(--text-muted); flex-shrink: 0;
+    }
+    .step-btn.active .step-num { background: var(--blue); color: #fff; }
+    .step-btn.done   .step-num { background: var(--blue-bg); color: var(--blue-text); }
+    .step-title { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-align: center; line-height: 1.3; }
+    .step-btn.active .step-title { color: var(--blue-text); }
+    .step-eq { font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; color: var(--text-muted); }
+    .step-btn.active .step-eq { color: var(--blue-text); }
+
+    /* ── Explainer ── */
+    .explainer {
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      border-left: 3px solid var(--border-strong);
+      padding: 0.6rem 0.9rem; margin-bottom: 0.7rem;
+      font-size: 0.83rem; line-height: 1.65; color: var(--text-muted);
+      min-height: 2.8rem;
+    }
+    .explainer strong { color: var(--text); }
+
+    /* ── Sliders ── */
+    .sl-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 0.4rem 0.8rem; margin-bottom: 0.5rem;
+    }
+    .sl-lbl { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; min-width: 145px; }
+    .sl-lbl .sym { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.88rem; }
+    .sl-row input[type=range] { flex: 1; cursor: pointer; }
+    .sl-val { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 700; min-width: 34px; text-align: right; }
+
+    /* ── Plot ── */
+    .plot-svg { width: 100%; display: block; }
+
+    /* ── Second plot section ── */
+    .time-section { margin-top: 1.1rem; }
+    .time-header {
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em;
+      font-weight: 600; color: var(--text-muted); margin-bottom: 0.45rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .time-header::before {
+      content: ''; display: inline-block; width: 3px; height: 1em;
+      background: var(--green); border-radius: 2px;
+    }
+
+    /* ── Nav ── */
+    .nav-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 0.7rem;
+    }
+    .nav-btn {
+      padding: 0.38rem 0.85rem; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; transition: background 0.13s, color 0.13s;
+    }
+    .nav-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+    .nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .nav-btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .nav-btn.primary:hover:not(:disabled) { background: #2563eb; }
+    .step-counter { font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; color: var(--text-muted); }
+
+    .w-caption { font-size: 0.75rem; color: var(--text-muted); font-style: italic; text-align: center; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+<div class="w-root" id="app">
+
+  <!-- Step tabs -->
+  <div class="steps" role="tablist">
+    <button class="step-btn active" id="s0" role="tab">
+      <span class="step-num">1</span>
+      <span class="step-title">Group average</span>
+      <span class="step-eq">β₀</span>
+    </button>
+    <button class="step-btn" id="s1" role="tab">
+      <span class="step-num">2</span>
+      <span class="step-title">Child offsets</span>
+      <span class="step-eq">+ u<sub>j</sub></span>
+    </button>
+    <button class="step-btn" id="s2" role="tab">
+      <span class="step-num">3</span>
+      <span class="step-title">Observations</span>
+      <span class="step-eq">+ ε<sub>ij</sub></span>
+    </button>
+  </div>
+
+  <!-- Equation display -->
+  <div id="eq-display" style="
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92rem;
+    text-align: center;
+    padding: 0.55rem 0.5rem 0.45rem;
+    margin-bottom: 0.7rem;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    line-height: 1.5;
+  "></div>
+
+  <!-- Explainer -->
+  <div class="explainer" id="explainer"></div>
+
+  <!-- τ slider — shown from step 2 -->
+  <div class="sl-row" id="tau-row" style="display:none">
+    <span class="sl-lbl">Between-child spread &nbsp;<span class="sym" style="color:#1d4ed8">τ</span></span>
+    <input type="range" id="tau-sl" min="0" max="3" step="0.1" value="0" style="accent-color:#1d4ed8">
+    <span class="sl-val" id="tau-val" style="color:#1d4ed8">0.0</span>
+  </div>
+
+  <!-- σ slider — shown from step 3 -->
+  <div class="sl-row" id="sig-row" style="display:none">
+    <span class="sl-lbl">Within-child noise &nbsp;<span class="sym" style="color:#b45309">σ</span></span>
+    <input type="range" id="sig-sl" min="0" max="3" step="0.1" value="0" style="accent-color:#b45309">
+    <span class="sl-val" id="sig-val" style="color:#b45309">0.0</span>
+  </div>
+
+  <!-- β₁ slider — shown from step 3 -->
+  <div class="sl-row" id="b1-row" style="display:none">
+    <span class="sl-lbl">Time effect &nbsp;<span class="sym" style="color:#085041">β₁</span></span>
+    <input type="range" id="b1-sl" min="-8" max="12" step="0.5" value="0" style="accent-color:#1D9E75">
+    <span class="sl-val" id="b1-val" style="color:#085041">0</span>
+  </div>
+
+  <!-- Random slopes toggle — shown from step 3 -->
+  <div class="sl-row" id="rslope-row" style="display:none">
+    <span class="sl-lbl">Random slopes &nbsp;<span class="sym" style="color:#1D9E75">v<sub>j</sub></span></span>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+      <input type="checkbox" id="rslope-chk" style="width:16px;height:16px;accent-color:#1D9E75;cursor:pointer">
+      <span id="rslope-lbl" style="font-size:0.78rem;color:var(--text-muted)">Off — children share the same slope</span>
+    </label>
+  </div>
+
+  <!-- Main decomposition plot -->
+  <svg class="plot-svg" id="plot" viewBox="0 0 500 250" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <!-- Time-series plot — always visible -->
+  <div class="time-section" id="time-section">
+    <div class="time-header">Same data, rearranged by time</div>
+    <svg class="plot-svg" id="plot2" viewBox="0 0 500 220" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-row">
+    <button class="nav-btn" id="btn-back" disabled>← Back</button>
+    <span class="step-counter" id="counter">Step 1 of 3</span>
+    <button class="nav-btn primary" id="btn-next">Next →</button>
+  </div>
+
+  <p class="w-caption">Figure 2.4.1 — Each observation is the sum of three parts: a group average trajectory (β₀ + β₁·t), a child-specific offset (u<sub>j</sub>), and observation-level noise (ε<sub>ij</sub>). The lower plot shows the same dots arranged by time, with the β₁ slider controlling the shared slope.</p>
+</div>
+
+<script>
+(function () {
+  /* ── Constants ── */
+  const BETA0 = 50;
+
+  // Unit seeds — scaled by τ and σ at render time
+  const UJ_SEEDS  = [+1.2, -1.6, +0.6];           // scaled by τ → u_j
+  const EPS_SEEDS = [[+1.1, -1.4], [-0.9, +1.6], [+1.3, -1.0]]; // scaled by σ → ε
+
+  const CHILD_COL  = ['#7c3aed', '#0891b2', '#be185d'];
+  const CHILD_NAME = ['Child 1', 'Child 2', 'Child 3'];
+
+  const C_GRP = '#6b6a66';
+  const C_UJ  = '#1d4ed8';
+  const C_EPS = '#b45309';
+
+  /* ── SVG helpers ── */
+  const NS = 'http://www.w3.org/2000/svg';
+  function mk(tag, a, t) {
+    const e = document.createElementNS(NS, tag);
+    for (const [k,v] of Object.entries(a)) e.setAttribute(k,v);
+    if (t !== undefined) e.textContent = t;
+    return e;
+  }
+  const ln = (x1,y1,x2,y2,a) => mk('line',   {x1,y1,x2,y2,...a});
+  const cr = (cx,cy,r,a)      => mk('circle', {cx,cy,r,...a});
+  const tx = (x,y,a,t)        => mk('text',   {x,y,...a}, t);
+  const rc = (x,y,w,h,a)      => mk('rect',   {x,y,width:w,height:h,...a});
+
+  /* ── State ── */
+  let step = 0;
+  const MAX = 2;
+
+  function getTau()       { return +document.getElementById('tau-sl').value; }
+  function getSig()       { return +document.getElementById('sig-sl').value; }
+  function getBeta1()     { return +document.getElementById('b1-sl').value; }
+  function getRandSlopes(){ return document.getElementById('rslope-chk').checked; }
+
+  // Derived values
+  function derived() {
+    const tau = getTau(), sig = getSig(), beta1 = getBeta1();
+    const randSlopes = getRandSlopes();
+    const uj  = UJ_SEEDS.map(s => +(s * tau).toFixed(2));
+    const eps = EPS_SEEDS.map((row) => row.map(s => +(s * sig).toFixed(2)));
+    // When random slopes on: each child's slope = rise/run between their two observed points
+    // obs_t1 = BETA0 + u_j + eps[j][0], obs_t2 = BETA0 + u_j + beta1 + eps[j][1]
+    // slope_j = obs_t2 - obs_t1 = beta1 + eps[j][1] - eps[j][0]
+    const slopes = uj.map((u, j) =>
+      randSlopes ? +(beta1 + eps[j][1] - eps[j][0]).toFixed(2) : beta1
+    );
+    return { tau, sig, beta1, randSlopes, uj, eps, slopes };
+  }
+
+  /* ── Explainers ── */
+  const TIPS = [
+    { border: 'var(--border-strong)',
+      html: `<strong>Start with a group average.</strong> First, we calculate the grand mean of all observations — pooling every child and every timepoint together, ignoring who came from where. That single number, β₀ = ${BETA0}, is the baseline everything else is measured against.` },
+    { border: C_UJ,
+      html: () => {
+        const { tau, uj } = derived();
+        return `<strong>Each child is a draw from a distribution of children.</strong> We essentially draw from a distribution twice. First, we draw oranges from a tree — each orange is a child, and each comes out slightly different. Some are sweeter, some more tart, but they all share the same origin. Here, each child's baseline is offset from β₀ by u<sub>j</sub>. Drag τ to pull the children apart.`;
+      }},
+    { border: C_EPS,
+      html: () => {
+        const { sig } = derived();
+        return `<strong>Each observation is a draw from that child's distribution.</strong> Then we draw again — this time, slices from the orange. Slices from the same orange will taste similar, but not identical. In the same way, two measurements from the same child are close to each other, but never exactly the same. Drag σ to control how much the slices vary. And once you know <em>which orange</em> you're slicing, the variation between slices tells you nothing about the other oranges on the tree.`;
+      }},
+  ];
+
+  function tipHtml(step) {
+    const t = TIPS[step];
+    return typeof t.html === 'function' ? t.html() : t.html;
+  }
+
+  /* ══════════════════════════════════════════════
+     PLOT 1 — decomposition by child
+  ══════════════════════════════════════════════ */
+  const PL = { l: 52, r: 30, t: 18, b: 38, W: 500, H: 250 };
+  const PW = PL.W - PL.l - PL.r;
+  const PH = PL.H - PL.t - PL.b;
+
+  function childSection(j) {
+    const secW = PW / 3;
+    const secL = PL.l + j * secW;
+    return { left: secL + secW*0.28, right: secL + secW*0.72, mid: secL + secW*0.5 };
+  }
+
+  function makeScale1(uj, eps, beta1, slopes) {
+    // slopes: per-child effective slope (β₁ + v_j); falls back to uniform beta1
+    const sl = slopes || uj.map(() => beta1);
+    const all = [BETA0, BETA0 + beta1];
+    uj.forEach((u,j) => [0,1].forEach(t =>
+      all.push(BETA0 + u + sl[j]*t, BETA0 + u + sl[j]*t + eps[j][t])
+    ));
+    const pad = 7;
+    const smin = Math.floor(Math.min(...all) - pad);
+    const smax = Math.ceil(Math.max(...all)  + pad);
+    return { smin, smax, toY: s => PL.t + PH - ((s-smin)/(smax-smin))*PH };
+  }
+
+  function drawPlot1() {
+    const { uj, eps, beta1: _beta1, slopes: _slopes } = derived();
+    const beta1   = step >= 2 ? _beta1 : 0;
+    const slopes  = step >= 2 ? _slopes : uj.map(() => 0);
+    const eps0    = eps.map(row => row.map(() => 0));
+    const epsEff  = step >= 2 ? eps : eps0;
+    const { toY } = makeScale1(uj, epsEff, beta1, slopes);
+    const svg = document.getElementById('plot');
+    svg.innerHTML = '';
+
+    // Frame
+    svg.appendChild(rc(0,0,PL.W,PL.H, {fill:'#fafaf9',rx:6,stroke:'var(--border)','stroke-width':1}));
+    svg.appendChild(rc(PL.l,PL.t,PW,PH, {fill:'white',rx:3,stroke:'#e5e7eb','stroke-width':1}));
+
+    // y gridlines
+    const { smin, smax } = makeScale1(uj, epsEff, beta1, slopes);
+    const ystep = (smax-smin) > 35 ? 10 : 5;
+    for (let s = Math.ceil(smin/ystep)*ystep; s <= smax; s += ystep) {
+      const y = toY(s);
+      svg.appendChild(ln(PL.l,y,PL.l+PW,y, {stroke:'rgba(0,0,0,0.05)','stroke-width':1}));
+      svg.appendChild(tx(PL.l-5,y, {'font-size':9,fill:'#9ca3af','text-anchor':'end','dominant-baseline':'middle','font-family':'JetBrains Mono, monospace'}, s));
+    }
+    svg.appendChild(tx(PL.l-40,PL.t+PH/2, {'font-size':9,fill:'#9ca3af','text-anchor':'middle',transform:`rotate(-90,${PL.l-40},${PL.t+PH/2})`,'font-family':'sans-serif'}, 'Score'));
+
+    const y0 = toY(BETA0);
+
+    /* Step 1: group line */
+    if (step === 0) {
+      svg.appendChild(ln(PL.l+8,y0,PL.l+PW-8,y0, {stroke:C_GRP,'stroke-width':2.5}));
+      svg.appendChild(tx(PL.l+PW-10,y0-7, {'font-size':10,fill:C_GRP,'font-weight':700,'text-anchor':'end','font-family':'JetBrains Mono, monospace'}, `β₀ = ${BETA0}`));
+    }
+
+    /* Step 2+: child sections */
+    if (step >= 1) {
+      // Section dividers
+      for (let j = 1; j < 3; j++) {
+        const x = PL.l + j*(PW/3);
+        svg.appendChild(ln(x,PL.t,x,PL.t+PH, {stroke:'rgba(0,0,0,0.06)','stroke-width':1,'stroke-dasharray':'4,4'}));
+      }
+      // Faded group average
+      svg.appendChild(ln(PL.l+4,y0,PL.l+PW-4,y0, {stroke:C_GRP,'stroke-width':1.5,'stroke-dasharray':'6,4',opacity:0.4}));
+      svg.appendChild(tx(PL.l+8,y0-6, {'font-size':8,fill:C_GRP,'dominant-baseline':'auto','font-family':'JetBrains Mono, monospace',opacity:0.55}, `β₀=${BETA0}`));
+
+      uj.forEach((u, j) => {
+        const sec  = childSection(j);
+        const col  = CHILD_COL[j];
+        const sl   = slopes[j];
+        const yj1  = toY(BETA0 + u);         // t1 anchor (t=0)
+        const yj2  = toY(BETA0 + u + sl);    // t2 anchor (t=1)
+
+        // Child trajectory line
+        svg.appendChild(ln(sec.left-8,yj1,sec.right+8,yj2, {stroke:col,'stroke-width':2,opacity:step===1?1:0.35}));
+
+        // x-axis labels
+        svg.appendChild(tx(sec.mid,PL.t+PH+13, {'font-size':9.5,fill:col,'font-weight':700,'text-anchor':'middle','font-family':'sans-serif'}, CHILD_NAME[j]));
+        ['t1','t2'].forEach((lbl,k) => {
+          svg.appendChild(tx(k===0?sec.left:sec.right, PL.t+PH+24, {'font-size':8,fill:'#9ca3af','text-anchor':'middle','font-family':'JetBrains Mono, monospace'}, lbl));
+        });
+
+        // u_j bracket — always anchored at t1 (t=0), bracket vs y0
+        const bx = sec.left - 16;
+        if (Math.abs(y0-yj1) > 3) {
+          const yTop = Math.min(y0,yj1), yBot = Math.max(y0,yj1);
+          svg.appendChild(ln(bx,yTop,bx,yBot, {stroke:C_UJ,'stroke-width':1.8}));
+          svg.appendChild(ln(bx,yTop,bx+5,yTop, {stroke:C_UJ,'stroke-width':1.8}));
+          svg.appendChild(ln(bx,yBot,bx+5,yBot, {stroke:C_UJ,'stroke-width':1.8}));
+          const sign = u>=0?'+':'';
+          svg.appendChild(tx(bx-3,(yTop+yBot)/2, {'font-size':8,fill:C_UJ,'font-weight':700,'text-anchor':'end','dominant-baseline':'middle','font-family':'JetBrains Mono, monospace'}, `${sign}${u}`));
+        }
+
+        // Ghost circles at step 1
+        if (step === 1) {
+          [[sec.left,yj1],[sec.right,yj2]].forEach(([x,y]) => svg.appendChild(cr(x,y,4, {fill:'white',stroke:col,'stroke-width':1.8,opacity:0.6})));
+        }
+      });
+      if (step === 1) svg.appendChild(tx(PL.l+6,PL.t+6, {'font-size':8.5,fill:C_UJ,'font-weight':700,'dominant-baseline':'hanging','font-family':'JetBrains Mono, monospace'}, '← u_j: offset from group average'));
+    }
+
+    /* Step 3: ε spans + observed dots */
+    if (step >= 2) {
+      uj.forEach((u, j) => {
+        const sec  = childSection(j);
+        const col  = CHILD_COL[j];
+        const xs   = [sec.left, sec.right];
+
+        epsEff[j].forEach((e, k) => {
+          const trueLine = BETA0 + u + slopes[j]*k;
+          const obsScore = trueLine + e;
+          const yLine    = toY(trueLine);
+          const yObs     = toY(obsScore);
+          const x        = xs[k];
+          // ε span
+          svg.appendChild(ln(x,yLine,x,yObs, {stroke:C_EPS,'stroke-width':2.2,'stroke-dasharray':'3,2.5',opacity:0.95}));
+          svg.appendChild(ln(x-5,yLine,x+5,yLine, {stroke:C_EPS,'stroke-width':2}));
+          svg.appendChild(ln(x-5,yObs, x+5,yObs,  {stroke:C_EPS,'stroke-width':2}));
+          // ε label — only if span is tall enough
+          if (Math.abs(yObs-yLine) > 14) {
+            const sign = e>=0?'+':'';
+            svg.appendChild(tx(x+(k===0?-11:11),(yLine+yObs)/2, {'font-size':8.5,fill:C_EPS,'font-weight':700,'text-anchor':'middle','dominant-baseline':'middle','font-family':'JetBrains Mono, monospace'}, `${sign}${e}`));
+          }
+          // Dot
+          svg.appendChild(cr(x,yObs,5.5, {fill:col,stroke:'white','stroke-width':2}));
+        });
+
+        // x-axis labels
+        svg.appendChild(tx(sec.mid,PL.t+PH+13, {'font-size':9.5,fill:col,'font-weight':700,'text-anchor':'middle','font-family':'sans-serif'}, CHILD_NAME[j]));
+        ['t1','t2'].forEach((lbl,k) => {
+          svg.appendChild(tx(k===0?sec.left:sec.right, PL.t+PH+24, {'font-size':8,fill:'#9ca3af','text-anchor':'middle','font-family':'JetBrains Mono, monospace'}, lbl));
+        });
+      });
+      svg.appendChild(tx(PL.l+6,PL.t+6, {'font-size':8.5,fill:C_EPS,'font-weight':700,'dominant-baseline':'hanging','font-family':'JetBrains Mono, monospace'}, '↕ ε: scatter around child trajectory'));
+    }
+  }
+
+  /* ══════════════════════════════════════════════
+     PLOT 2 — same dots, time on x-axis
+  ══════════════════════════════════════════════ */
+  const P2 = { l: 52, r: 90, t: 18, b: 30, W: 500, H: 220 };
+  const P2W = P2.W - P2.l - P2.r;
+  const P2H = P2.H - P2.t - P2.b;
+  const XT1 = P2.l + P2W * 0.25;
+  const XT2 = P2.l + P2W * 0.75;
+
+  function drawPlot2() {
+    const { uj, eps, beta1: _beta1, slopes: _slopes } = derived();
+    const beta1   = step >= 2 ? _beta1 : 0;
+    const slopes  = step >= 2 ? _slopes : uj.map(() => 0);
+    const eps0    = eps.map(row => row.map(() => 0));
+    const epsEff  = step >= 2 ? eps : eps0;
+    const svg = document.getElementById('plot2');
+    svg.innerHTML = '';
+
+    // y scale — same data range as plot 1
+    const { smin, smax, toY: toY2 } = makeScale1(uj, epsEff, beta1, slopes);
+
+    // Frame
+    svg.appendChild(rc(0,0,P2.W,P2.H, {fill:'#fafaf9',rx:6,stroke:'var(--border)','stroke-width':1}));
+    svg.appendChild(rc(P2.l,P2.t,P2W,P2H, {fill:'white',rx:3,stroke:'#e5e7eb','stroke-width':1}));
+
+    // y gridlines
+    const ystep = (smax-smin) > 35 ? 10 : 5;
+    for (let s = Math.ceil(smin/ystep)*ystep; s <= smax; s += ystep) {
+      const y = toY2(s);
+      svg.appendChild(ln(P2.l,y,P2.l+P2W,y, {stroke:'rgba(0,0,0,0.05)','stroke-width':1}));
+      svg.appendChild(tx(P2.l-5,y, {'font-size':9,fill:'#9ca3af','text-anchor':'end','dominant-baseline':'middle','font-family':'JetBrains Mono, monospace'}, s));
+    }
+    svg.appendChild(tx(P2.l-40,P2.t+P2H/2, {'font-size':9,fill:'#9ca3af','text-anchor':'middle',transform:`rotate(-90,${P2.l-40},${P2.t+P2H/2})`,'font-family':'sans-serif'}, 'Score'));
+
+    // x-axis: t1 and t2
+    ['t1','t2'].forEach((lbl,i) => {
+      const x = i===0 ? XT1 : XT2;
+      svg.appendChild(ln(x,P2.t,x,P2.t+P2H, {stroke:'rgba(0,0,0,0.05)','stroke-width':1,'stroke-dasharray':'4,4'}));
+      svg.appendChild(tx(x,P2.t+P2H+16, {'font-size':11,fill:'#9ca3af','text-anchor':'middle','font-family':'JetBrains Mono, monospace'}, lbl));
+    });
+
+    const yG1 = toY2(BETA0);
+    const yG2 = toY2(BETA0 + beta1);
+
+    /* Step 1: group average trajectory only */
+    if (step === 0) {
+      svg.appendChild(ln(XT1,yG1,XT2,yG2, {stroke:C_GRP,'stroke-width':2.5}));
+      svg.appendChild(tx(P2.l+P2W+6,(yG1+yG2)/2, {'font-size':10,fill:C_GRP,'font-weight':700,'dominant-baseline':'middle','font-family':'JetBrains Mono, monospace'}, `β₀=${BETA0}`));
+    }
+
+    /* Step 2+: faded group avg + child trajectories */
+    if (step >= 1) {
+      svg.appendChild(ln(XT1,yG1,XT2,yG2, {stroke:C_GRP,'stroke-width':1.5,'stroke-dasharray':'6,4',opacity:0.4}));
+      svg.appendChild(tx(P2.l+P2W+6,(yG1+yG2)/2, {'font-size':8,fill:C_GRP,'dominant-baseline':'middle','font-family':'JetBrains Mono, monospace',opacity:0.6}, 'β₀+β₁t'));
+
+      uj.forEach((u, j) => {
+        const col  = CHILD_COL[j];
+        const yj1  = toY2(BETA0 + u);
+        const yj2  = toY2(BETA0 + u + slopes[j]);
+
+        svg.appendChild(ln(XT1,yj1,XT2,yj2, {stroke:col,'stroke-width':2,opacity:step===1?1:0.35}));
+        svg.appendChild(tx(P2.l+P2W+6,(yj1+yj2)/2, {'font-size':9,fill:col,'font-weight':700,'dominant-baseline':'middle','font-family':'sans-serif'}, CHILD_NAME[j]));
+
+        if (step === 1) {
+          [[XT1,yj1],[XT2,yj2]].forEach(([x,y]) => svg.appendChild(cr(x,y,4, {fill:'white',stroke:col,'stroke-width':1.8,opacity:0.6})));
+        }
+      });
+    }
+
+    /* Step 3: ε spans + observed dots */
+    if (step >= 2) {
+      uj.forEach((u, j) => {
+        const col = CHILD_COL[j];
+        epsEff[j].forEach((e, k) => {
+          const trueLine = BETA0 + u + slopes[j]*k;
+          const obsScore = trueLine + e;
+          const yLine    = toY2(trueLine);
+          const yObs     = toY2(obsScore);
+          const x        = k===0 ? XT1 : XT2;
+          svg.appendChild(ln(x,yLine,x,yObs, {stroke:C_EPS,'stroke-width':2,'stroke-dasharray':'3,2.5',opacity:0.85}));
+          svg.appendChild(ln(x-4,yLine,x+4,yLine, {stroke:C_EPS,'stroke-width':1.8}));
+          svg.appendChild(ln(x-4,yObs, x+4,yObs,  {stroke:C_EPS,'stroke-width':1.8}));
+          svg.appendChild(cr(x,yObs,5.5, {fill:col,stroke:'white','stroke-width':2}));
+        });
+      });
+    }
+
+    // Legend
+    svg.appendChild(ln(P2.l+6,P2.t+6,P2.l+20,P2.t+6, {stroke:C_GRP,'stroke-width':1.5,'stroke-dasharray':'6,4',opacity:0.5}));
+    svg.appendChild(tx(P2.l+23,P2.t+7, {'font-size':8,fill:'#9ca3af','dominant-baseline':'middle','font-family':'sans-serif'}, 'Group avg (β₀ + β₁·t)'));
+    if (step >= 1) {
+      svg.appendChild(ln(P2.l+6,P2.t+18,P2.l+20,P2.t+18, {stroke:CHILD_COL[0],'stroke-width':1.8,opacity:0.5}));
+      svg.appendChild(tx(P2.l+23,P2.t+19, {'font-size':8,fill:'#9ca3af','dominant-baseline':'middle','font-family':'sans-serif'}, 'Child trajectory (β₀ + u_j + β₁·t)'));
+    }
+  }
+
+  /* ── Equation display ── */
+  const C_B1  = '#1D9E75';  // green — β₁
+  function renderEq() {
+    const { randSlopes } = derived();
+    const dim  = step < 1;  // terms not yet introduced are greyed out
+
+    const s = (color, active, html) =>
+      `<span style="color:${active ? color : '#c4c4c0'};font-weight:${active?700:400}">${html}</span>`;
+
+    // y_ij =
+    let eq = `<span style="color:var(--text-muted)">y<sub style="font-size:0.7em">ij</sub> = </span>`;
+
+    // β₀ — always active
+    eq += s(C_GRP, true, 'β₀');
+
+    // + u_j — active from step 2
+    eq += ` <span style="color:${step >= 1 ? '#555' : '#c4c4c0'}">+</span> ` + s(C_UJ, step >= 1, 'u<sub style="font-size:0.7em">j</sub>');
+
+    // + β₁·t — active from step 3; if random slopes, becomes (β₁ + v_j)·t
+    if (step >= 2 && randSlopes) {
+      eq += ` <span style="color:#555">+</span> <span style="color:${C_B1};font-weight:700">(β₁ + v<sub style="font-size:0.7em">j</sub>)·t<sub style="font-size:0.7em">ij</sub></span>`;
+    } else {
+      eq += ` <span style="color:${step >= 2 ? '#555' : '#c4c4c0'}">+</span> ` + s(C_B1, step >= 2, 'β₁·t<sub style="font-size:0.7em">ij</sub>');
+    }
+
+    // + ε_ij — active from step 3
+    eq += ` <span style="color:${step >= 2 ? '#555' : '#c4c4c0'}">+</span> ` + s(C_EPS, step >= 2, 'ε<sub style="font-size:0.7em">ij</sub>');
+
+    document.getElementById('eq-display').innerHTML = eq;
+  }
+
+  /* ── Full render ── */
+  function render() {
+    drawPlot1();
+    drawPlot2();
+    renderEq();
+  }
+
+  /* ── UI update ── */
+  function updateUI() {
+    for (let i = 0; i <= MAX; i++) {
+      const b = document.getElementById(`s${i}`);
+      b.classList.toggle('active', i === step);
+      b.classList.toggle('done',   i < step);
+    }
+    // Equation
+    renderEq();
+
+    // Explainer
+    const ex = document.getElementById('explainer');
+    ex.innerHTML = tipHtml(step);
+    ex.style.borderLeftColor = TIPS[step].border;
+
+    // Sliders visibility
+    document.getElementById('tau-row').style.display = step >= 1 ? '' : 'none';
+    document.getElementById('sig-row').style.display = step >= 2 ? '' : 'none';
+    document.getElementById('b1-row').style.display      = step >= 2 ? '' : 'none';
+    document.getElementById('rslope-row').style.display  = step >= 2 ? '' : 'none';
+
+    // Nav buttons
+    document.getElementById('btn-back').disabled = step === 0;
+    const nb = document.getElementById('btn-next');
+    nb.disabled = step === MAX;
+    nb.className = 'nav-btn' + (step < MAX ? ' primary' : '');
+    document.getElementById('counter').textContent = `Step ${step+1} of ${MAX+1}`;
+  }
+
+  function goTo(s) {
+    step = Math.max(0, Math.min(MAX, s));
+    updateUI();
+    render();
+  }
+
+  /* ── Wire sliders ── */
+  document.getElementById('tau-sl').addEventListener('input', function() {
+    document.getElementById('tau-val').textContent = (+this.value).toFixed(1);
+    document.getElementById('explainer').innerHTML = tipHtml(step);
+    render();
+  });
+  document.getElementById('sig-sl').addEventListener('input', function() {
+    document.getElementById('sig-val').textContent = (+this.value).toFixed(1);
+    document.getElementById('explainer').innerHTML = tipHtml(step);
+    render();
+  });
+  document.getElementById('b1-sl').addEventListener('input', function() {
+    document.getElementById('b1-val').textContent = (+this.value).toFixed(1);
+    render();
+  });
+  document.getElementById('rslope-chk').addEventListener('change', function() {
+    document.getElementById('rslope-lbl').textContent = this.checked
+      ? 'On — each child has their own slope'
+      : 'Off — children share the same slope';
+    render();
+  });
+
+  /* ── Wire nav ── */
+  document.getElementById('btn-next').addEventListener('click', () => goTo(step+1));
+  document.getElementById('btn-back').addEventListener('click', () => goTo(step-1));
+  ['s0','s1','s2'].forEach((id,i) => document.getElementById(id).addEventListener('click', () => goTo(i)));
+
+  goTo(0);
+
+  setTimeout(() => {
+    const h = document.getElementById('app').offsetHeight;
+    window.parent.postMessage({iframeHeight:h, iframeId:'widget_2_4_1'}, '*');
+  }, 400);
+})();
+</script>
+</body>
+</html>

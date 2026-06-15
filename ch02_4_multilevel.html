@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.4 Multilevel Models — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false}
+      ]
+    });">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
+  <style>
+    /* ── Embedded widget iframe ── */
+    .widget-frame {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      margin: 1.5rem 0;
+      display: block;
+    }
+    .widget-label {
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch02_4_multilevel"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>2.4 Multilevel Models</h1>
+      <p class="subtitle">Modelling the reason for correlation, not the correlation itself</p>
+
+      <div class="objectives">
+        <div class="objectives-icon"><i data-lucide="target"></i></div>
+        <div class="objectives-body">
+          <div class="obj-label">Learning objectives</div>
+          <ul>
+            <li>Understand how multilevel models explain rather than model the correlation structure</li>
+            <li>Recognise the two-level architecture and what the random effect $u_j$ captures</li>
+            <li>Apply APCES to multilevel models and connect ICC to the GLS concept of $\rho$</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── Margin notes ── -->
+      <aside class="margin-note" data-ref="ref-follows">
+        <span class="note-label">Follows automatically</span>
+        'Follows automatically' is another way of saying that the covariance structure $\Sigma$ is implied from the data without having to specify it.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-explain">
+        <span class="note-label">Explaining correlation away</span>
+        The correlation does not disappear; we explain it away.
+      </aside>
+
+      <aside class="margin-note amber" data-ref="ref-icc">
+        <span class="note-label">ICC and $\rho$</span>
+        ICC and rho (in GLS) are basically the same thing, under compound symmetry assumptions.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-reml">
+        <span class="note-label">Model comparison with REML</span>
+        If you want to compare two models with different fixed effects, you cannot use REML likelihoods directly. Switch to plain ML for that comparison. Most software handles this quietly if you ask for a likelihood ratio test.
+      </aside>
+
+      <!-- ── Prose ── -->
+      <div class="prose">
+
+        <p>
+          GLS replaced the single variance term $\sigma^2$ with a full covariance matrix $\Sigma$.
+          This gives us a way to acknowledge that observations from the same child are correlated,
+          and to produce standard errors that reflect that fact.
+        </p>
+
+        <p>
+          <span id="ref-follows"></span>Multilevel models, sometimes called mixed-effects models or hierarchical models,
+          pretty much do the same thing, but with a different model architecture. Rather than
+          modelling the correlation structure directly, they model the <em>reason</em> the
+          correlation exists in the first place. And once you do that, the covariance structure
+          follows automatically.
+        </p>
+
+        <hr>
+
+        <h2>Architecture</h2>
+
+        <p>
+          Multilevel models start from a simple question: why are two observations from the same
+          child more similar to each other than two observations from different children?
+        </p>
+
+        <p>
+          Think of it like oranges. Imagine our children are oranges from the same tree. Each
+          orange is unique — some are sweeter, some more tart, some larger than others. But if you
+          take two slices from the same orange, they will taste much more alike than two slices
+          from different oranges. The slices are correlated not because of anything mysterious, but
+          simply because they come from the same fruit.
+        </p>
+
+        <p>
+          The children in our sample work the same way. Each child arrives at the program with
+          their own characteristics, such as their home environment, their natural aptitude, the
+          countless things that make them who they are. Two measurements from the same child will
+          be similar because they are both shaped by that child's underlying characteristics, in
+          the same way that two slices share the flavour of their orange. Two measurements from
+          different children have no such shared anchor.
+        </p>
+
+        <p>
+          <span id="ref-explain"></span>Multilevel models are basically saying that if we can explicitly account for the fact
+          that two observations come from the same child — i.e. label which orange each slice came
+          from — the remaining variation between slices is effectively independent.
+        </p>
+
+        <p>Thus, multilevel models have the following model specification:</p>
+
+        $$y_{ij} = \beta_0 + u_j + \beta_1 \cdot \text{time}_{ij} + \epsilon_{ij}$$
+
+        <p>
+          Effectively, multilevel models simply partition variance into two buckets —
+          between-subjects (orange-to-orange differences) and within-subjects (slice-to-slice
+          within the same orange). Children vary around the average baseline with spread $\tau^2$
+          (some oranges are sweeter than others). And each observation varies around that child's
+          own baseline with spread $\sigma^2$ (even within the same orange, no two slices are
+          identical). These two sources of noise are assumed to be independent of each other.
+        </p>
+
+        <p>We assume both sources of variation are normally distributed:</p>
+
+        $$u_j \sim \mathcal{N}(0, \tau^2) \quad \text{and} \quad \epsilon_{ij} \sim \mathcal{N}(0, \sigma^2)$$
+
+        <div class="callout">
+          <div class="callout-icon"><i data-lucide="info"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">Subscripts and terms</div>
+            Formally, we use new subscripts: $i$ indexes the observation, $j$ indexes the child.
+            The term $u_j$ is new too — it is a child-specific offset, the thing that makes child
+            $j$'s orange uniquely sweet or tart. It captures everything about that child that makes
+            their scores consistently higher or lower than average, and it is the same for both of
+            their measurements. The term $\epsilon_{ij}$, by contrast, is the residual noise that
+            remains after you have accounted for which child you are looking at — the natural
+            ripeness variation between two slices of the same orange.
+          </div>
+        </div>
+
+        <p>
+          This is what gives the model its name. There are two levels: observations at the bottom,
+          children at the top. The $u_j$ terms are called <strong>random effects</strong> — they
+          are not fixed quantities to be estimated directly, but draws from a distribution, one
+          per child.
+        </p>
+
+        <div class="widget-label">Figure 2.4.1 — Decomposing variance into two levels</div>
+        <iframe
+          id="widget_2_4_1"
+          class="widget-frame"
+          src="widgets/widget_2_4_1_decomposition.html"
+          style="height: 500px;"
+          scrolling="no"
+          title="Figure 2.4.1 — Variance decomposition in multilevel models">
+        </iframe>
+
+        <hr>
+
+        <h2>Parameters</h2>
+
+        <p>
+          Once you have the orange tree picture in mind, the parameters fall out naturally. There
+          are the things we care about — $\beta_0$, the average baseline score across all children,
+          and $\beta_1$, the average improvement over time — and there are the things we need to
+          account for in order to trust those estimates: the two variance components.
+        </p>
+
+        <p>
+          $\tau^2$ describes how different the oranges are from each other. A large $\tau^2$ means
+          children come into the program with very different baseline scores — some consistently
+          high, some consistently low. A small $\tau^2$ means children are fairly similar to each
+          other at the start.
+        </p>
+
+        <p>
+          $\sigma^2$ describes how much a child's individual observations vary around their own
+          trajectory — the slice-to-slice variation within a single orange. This is the residual
+          noise that remains even after you have accounted for which child you are looking at.
+        </p>
+
+        <p>
+          Together, these two quantities tell you where the variability in your data is coming
+          from. A useful way to summarise that is the <strong>intraclass correlation
+          coefficient</strong>, or ICC:
+        </p>
+
+        $$\text{ICC} = \frac{\tau^2}{\tau^2 + \sigma^2}$$
+
+        <p>
+          <span id="ref-icc"></span>The ICC is simply the proportion of total variability that sits between children rather
+          than within them. An ICC of 0.6, for instance, means that 60% of the variation in
+          developmental scores is down to stable differences between children — which orange you
+          are — and only 40% is down to within-child fluctuation across time. In program
+          evaluation with developmental outcomes, ICCs tend to be moderate to high.
+        </p>
+
+        <hr>
+
+        <h2>Criterion</h2>
+
+        <p>
+          Like GLS, multilevel models are fitted by maximising a likelihood — roughly speaking,
+          finding the parameter values that make the data we observed as probable as possible. And
+          like GLS, the preferred version is <strong>REML</strong>, or Restricted Maximum
+          Likelihood.
+        </p>
+
+        <p>
+          The reason comes down to a subtle but important bias. When you estimate $\beta_0$ and
+          $\beta_1$ first, you use up some of the information in the data — some degrees of
+          freedom — before you even get to estimating $\tau^2$ and $\sigma^2$. Plain Maximum
+          Likelihood ignores this and tends to underestimate the variance components as a result,
+          particularly in small samples. REML corrects for it, giving you variance estimates that
+          are less biased.
+        </p>
+
+        <div class="callout amber">
+          <div class="callout-icon"><i data-lucide="triangle-alert"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">Comparing models with different fixed effects</div>
+            <span id="ref-reml"></span>If you want to compare two models with different fixed effects — say, a model with
+            just time versus a model with time and a child-level covariate — you cannot use REML
+            likelihoods to do it directly. You need to temporarily switch to plain ML for that
+            comparison. Most software handles this quietly if you ask for a likelihood ratio test,
+            but it is worth knowing about.
+          </div>
+        </div>
+
+        <hr>
+
+        <h2>Estimator</h2>
+
+        <p>
+          The fixed effects $\beta_0$ and $\beta_1$ are estimated much as they were in GLS — a
+          weighted regression that accounts for the correlation structure implied by the model.
+        </p>
+
+        <p>
+          The random effects — the individual $u_j$ offsets for each child, the unique flavour of
+          each orange — are handled differently. Rather than being estimated as free parameters,
+          they are <em>predicted</em> using a technique called <strong>BLUP</strong>, or Best
+          Linear Unbiased Prediction. The BLUP for each child is a compromise between that child's
+          own data and the population average. Children with more observations are trusted more and
+          pulled closer to their own data; children with fewer observations are pulled back toward
+          zero. This shrinkage is intentional — it guards against overfitting when you do not have
+          much data on a particular child.
+        </p>
+
+        <hr>
+
+        <h2>Solver</h2>
+
+        <p>
+          Different R packages (and software) will use different solvers. In <code>nlme</code>,
+          the fitting algorithm uses <strong>EM</strong> (Expectation-Maximisation) followed by
+          <strong>Newton-Raphson</strong> to find the parameter values that maximise the REML
+          likelihood. In <code>lme4</code>, the defaults are <strong>BOBYQA</strong> and
+          <strong>Nelder-Mead</strong> — a different family of optimisers, but pursuing the same
+          goal. Which package you use is largely a matter of preference and habit; both will give
+          you the same answers on well-behaved data.
+        </p>
+
+        <p>
+          The situation where the solver starts to matter is when it fails to converge — when the
+          optimiser cannot find a stable maximum and gives up, usually with a warning message that
+          is easy to miss and important not to. One of the most common causes is variables with
+          very large numeric values. If your time variable is coded as the actual calendar year —
+          2000, 2001, 2002 — the optimiser is working in a space where the numbers are large and
+          the likelihood surface is poorly scaled, which makes convergence difficult. Recode time
+          as 0, 1, 2 instead, and the problem usually disappears.
+        </p>
+
+        <hr>
+
+        <h2>The limitation</h2>
+
+        <p>
+          Multilevel models are a natural fit for longitudinal program evaluation data, but they
+          come with a few conditions worth knowing about.
+        </p>
+
+        <p>
+          The most important is that you need enough children to estimate $\tau^2$ reliably. The
+          between-child variance is estimated from the variation across children, and if you only
+          have a handful of them, that estimate will be unstable. There is no hard rule, but as a
+          rough guide, fewer than 20 children at the higher level should give you pause.
+        </p>
+
+        <p>
+          The model also assumes that the random effects $u_j$ are normally distributed — that the
+          oranges on the tree follow a bell curve of sweetness. This is usually reasonable for
+          developmental scores, but worth checking if your sample includes children who are extreme
+          outliers.
+        </p>
+
+        <p>
+          Finally, the equivalence with compound symmetry that we noted in the Estimator section
+          is both a strength and a constraint. For two time points, it is a perfectly reasonable
+          assumption. For longer studies with many waves, it becomes less plausible — a child's
+          scores at t1 and t5 are probably less correlated than their scores at t1 and t2, and
+          compound symmetry cannot capture that decay. In those settings, extending the model to
+          include random slopes, or moving to a more flexible covariance structure, becomes
+          necessary.
+        </p>
+
+        <hr>
+
+        <h2>Summary: APCES applied to Multilevel Models</h2>
+
+        <div style="overflow-x:auto; margin-bottom:1rem;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-strong);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700; white-space:nowrap;">Component</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">What it means</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Multilevel Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Architecture</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Assumptions about how the world generates data</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$y_{ij} = \beta_0 + u_j + \beta_1 \cdot \text{time}_{ij} + \epsilon_{ij}$, with $u_j \sim \mathcal{N}(0, \tau^2)$ and $\epsilon_{ij} \sim \mathcal{N}(0, \sigma^2)$. Observations are nested within children; within-person correlation arises from shared random effects.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Parameters</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The unknown quantities to estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\beta_0$ (average baseline), $\beta_1$ (average treatment effect), $\tau^2$ (between-child variance), $\sigma^2$ (within-child residual variance). The ICC $= \tau^2 / (\tau^2 + \sigma^2)$ summarises how much of the total variability is attributable to stable differences between children.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">REML likelihood, defined over the two-level data structure. Preferred over plain ML for unbiased variance component estimates; plain ML needed when comparing models with different fixed effects.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Fixed effects estimated via weighted regression, equivalent to GLS with compound symmetry. Random effects predicted via BLUP — a shrinkage estimator that balances each child's own data against the population average.</td>
+              </tr>
+              <tr>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Solver</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The computational procedure that finds the answer</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Iterative optimisation: EM and Newton-Raphson in <code>nlme</code>; BOBYQA and Nelder-Mead in <code>lme4</code>. Convergence can fail when predictor variables are on a large numeric scale — rescaling time to start at 0 is the most common fix.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <h2>Case Study</h2>
+
+        <p>
+          The ideas covered in this section are brought together in a worked example comparing
+          multilevel models to other approaches on the same longitudinal dataset, making concrete
+          what the theory can only gesture at.
+        </p>
+
+        <a class="case-study-link" href="case_study/multilevel_2.html">
+          <div class="case-study-card">
+            <div class="case-study-icon"><i data-lucide="book-open"></i></div>
+            <div class="case-study-body">
+              <div class="case-study-label">Case Study 2</div>
+              <div class="case-study-title">Mixed ANOVA vs Multilevel Modeling for Longitudinal Data</div>
+              <div class="case-study-desc">A step-by-step analysis comparing mixed ANOVA and multilevel models, with annotated R output and interpretation.</div>
+            </div>
+            <div class="case-study-arrow"><i data-lucide="arrow-right"></i></div>
+          </div>
+        </a>
+
+      </div><!-- /.prose -->
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+  <script>
+    window.addEventListener('message', function (e) {
+      if (!e.data || !e.data.iframeId || !e.data.iframeHeight) return;
+      const frame = document.getElementById(e.data.iframeId);
+      if (frame) frame.style.height = (e.data.iframeHeight + 16) + 'px';
+    });
+  </script>
+</body>
+</html>
