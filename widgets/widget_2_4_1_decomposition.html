@@ -559,10 +559,16 @@
     document.getElementById('counter').textContent = `Step ${step+1} of ${MAX+1}`;
   }
 
+  function postHeight() {
+    const h = document.getElementById('app').offsetHeight;
+    window.parent.postMessage({iframeHeight: h, iframeId: 'widget_2_4_1'}, '*');
+  }
+
   function goTo(s) {
     step = Math.max(0, Math.min(MAX, s));
     updateUI();
     render();
+    setTimeout(postHeight, 50);
   }
 
   /* ── Wire sliders ── */
@@ -594,10 +600,7 @@
 
   goTo(0);
 
-  setTimeout(() => {
-    const h = document.getElementById('app').offsetHeight;
-    window.parent.postMessage({iframeHeight:h, iframeId:'widget_2_4_1'}, '*');
-  }, 400);
+  setTimeout(postHeight, 400);
 })();
 </script>
 </body>
