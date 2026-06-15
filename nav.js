@@ -41,6 +41,10 @@
     const sidebar = document.createElement('nav');
     sidebar.id = 'site-nav';
 
+    // Build notes column — collect any margin-note asides from the card
+    const notesCol = document.createElement('div');
+    notesCol.id = 'notes-col';
+
     // Build layout wrapper
     const layout = document.createElement('div');
     layout.className = 'site-layout';
@@ -50,13 +54,23 @@
       layout.appendChild(document.body.firstChild);
     }
 
-    // Prepend sidebar into layout
+    // Prepend sidebar, append notes column
     layout.insertBefore(sidebar, layout.firstChild);
+    layout.appendChild(notesCol);
 
     // Assemble: mobileBar + overlay + layout
     document.body.appendChild(mobileBar);
     document.body.appendChild(overlay);
     document.body.appendChild(layout);
+
+    // Move margin-note asides from .card into #notes-col
+    document.querySelectorAll('.card aside.margin-note').forEach(note => {
+      notesCol.appendChild(note);
+    });
+
+    // Position notes after fonts/math render (small delay covers KaTeX reflow)
+    window.addEventListener('load', () => positionNotes(notesCol));
+    setTimeout(() => positionNotes(notesCol), 350);
 
     // Hamburger toggle
     document.getElementById('hamburger').addEventListener('click', () => {
@@ -143,6 +157,26 @@
     const card = document.querySelector('.card');
     if (card) card.appendChild(footer);
     else document.body.appendChild(footer);
+  }
+
+  /* ── Align margin notes to their anchors in the prose ── */
+  function positionNotes(notesCol) {
+    if (!notesCol) return;
+    const notes = Array.from(notesCol.querySelectorAll('.margin-note[data-ref]'));
+    if (!notes.length) return;
+
+    const colTop = notesCol.getBoundingClientRect().top + window.scrollY;
+    const minGap = 12; // px between notes
+    let nextAvailable = 0;
+
+    notes.forEach(note => {
+      const anchor = document.getElementById(note.dataset.ref);
+      if (!anchor) return;
+      const anchorTop = anchor.getBoundingClientRect().top + window.scrollY - colTop;
+      const top = Math.max(anchorTop, nextAvailable);
+      note.style.top = top + 'px';
+      nextAvailable = top + note.offsetHeight + minGap;
+    });
   }
 
   /* ── Resolve a toc-relative href to be relative to the current page ── */

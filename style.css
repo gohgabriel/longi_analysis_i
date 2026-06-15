@@ -149,33 +149,35 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2.5rem 2rem 2.5rem 2.5rem;
+  padding: 2.5rem;
   width: 100%;
-  /* Wide enough to hold prose + gap + margin notes */
-  max-width: calc(var(--prose-w) + var(--note-gap) + var(--note-w) + 4rem);
-  position: relative;
-}
-
-/* ── Prose column ── */
-.prose-col {
   max-width: var(--prose-w);
 }
 
+/* ── Prose column (alias, no extra constraints needed) ── */
+.prose-col { }
+
 /* ══════════════════════════════════════════════════
-   MARGIN NOTES
+   NOTES COLUMN
    ══════════════════════════════════════════════════ */
+
+#notes-col {
+  width: var(--note-w);
+  flex-shrink: 0;
+  padding: 2.5rem 1rem 4rem 0.5rem;
+  position: relative;
+}
 
 .margin-note {
   position: absolute;
-  right: 2rem;
-  width: var(--note-w);
+  left: 0.5rem;
+  right: 0;
   font-size: 0.78rem;
   line-height: 1.55;
   color: var(--text-muted);
   border-left: 2px solid var(--border-strong);
   padding-left: 0.75rem;
 }
-
 .margin-note strong { color: var(--text); font-weight: 600; }
 .margin-note em     { font-style: italic; }
 .margin-note .note-label {
@@ -192,24 +194,20 @@ body {
 .margin-note.amber  { border-left-color: var(--amber);  color: var(--amber-text); }
 .margin-note.purple { border-left-color: var(--purple); color: var(--purple-text); }
 
-/* On narrow screens, hide margin notes or push them inline */
-@media (max-width: 1000px) {
-  .margin-note { display: none; }
-  .card { max-width: var(--prose-w); padding: 2rem; }
-  .prose-col { max-width: 100%; }
-}
-
 /* ══════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════ */
+
+@media (max-width: 1100px) {
+  #notes-col { display: none; }
+}
 
 @media (max-width: 768px) {
   #site-nav    { display: none; }
   #mobile-bar  { display: flex; }
   .site-layout { flex-direction: column; }
   .page-body   { padding: 1.5rem 1rem 3rem; }
-  .margin-note { display: none; }
-  .card { padding: 1.5rem; }
+  .card        { padding: 1.5rem; }
 }
 
 /* ══════════════════════════════════════════════════

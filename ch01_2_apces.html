@@ -40,7 +40,39 @@
         </div>
       </div>
 
-      <div class="prose prose-col">
+      <!-- ── Margin notes (nav.js moves these into #notes-col and positions them) ── -->
+      <aside class="margin-note blue" data-ref="ref-theta">
+        <span class="note-label">Notation</span>
+        $\theta_{\text{true}}$ is read "theta true" — the unknowable population value we are trying to approximate. $\hat\theta$ ("theta hat") is our estimate from the sample.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-dgp">
+        <span class="note-label">Key concept</span>
+        The <strong>DGP</strong> is not a description of reality — it is a deliberate simplification. A good DGP captures the features of the world that matter most for your research question.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-params">
+        <span class="note-label">Remember</span>
+        Parameters live in the <em>population</em>. Estimates live in your <em>sample</em>. This distinction is the entire foundation of inferential statistics.
+      </aside>
+
+      <aside class="margin-note amber" data-ref="ref-loss">
+        <span class="note-label">ML connection</span>
+        In machine learning, the criterion is called a <strong>loss function</strong>. OLS's RSS is equivalent to mean squared error (MSE) — the most common loss in regression.
+      </aside>
+
+      <aside class="margin-note green" data-ref="ref-gauss">
+        <span class="note-label">Gauss–Markov theorem</span>
+        When the DGP assumptions hold, OLS is the <strong>Best Linear Unbiased Estimator (BLUE)</strong> — no other linear unbiased estimator has lower variance. This is the mathematical warranty for using OLS.
+      </aside>
+
+      <aside class="margin-note purple" data-ref="ref-mcmc">
+        <span class="note-label">Coming up</span>
+        The Bayesian chapter uses <strong>MCMC</strong> (Markov Chain Monte Carlo) as its solver — a stochastic algorithm that explores the full posterior distribution rather than finding a single point estimate.
+      </aside>
+
+      <!-- ── Prose ── -->
+      <div class="prose">
 
         <p>
           Before looking at specific analysis methods, it helps to have a unified lens for
@@ -53,12 +85,6 @@
 
         <h2>1. Architecture</h2>
 
-        <!-- Margin note: θ_true -->
-        <aside class="margin-note blue" style="top: 22.5rem;">
-          <span class="note-label">Notation</span>
-          $\theta_{\text{true}}$ is read "theta true" — the unknowable population value we are trying to approximate. $\hat\theta$ ("theta hat") is our estimate from the sample.
-        </aside>
-
         <p>
           When evaluating a program, we typically start with a research question:
         </p>
@@ -68,7 +94,7 @@
         </blockquote>
 
         <p>
-          What we are actually saying is that, in the general population, there is some ground
+          <span id="ref-theta"></span>What we are actually saying is that, in the general population, there is some ground
           truth — a number out there that perfectly quantifies this effect. We call this
           $\theta_{\text{true}}$.
         </p>
@@ -88,14 +114,8 @@
           space and make the problem tractable.
         </p>
 
-        <!-- Margin note: DGP -->
-        <aside class="margin-note" style="top: 36rem;">
-          <span class="note-label">Key concept</span>
-          The <strong>DGP</strong> is not a description of reality — it is a deliberate simplification. A good DGP captures the features of the world that matter most for your research question.
-        </aside>
-
         <p>
-          We call these assumptions the <strong>data-generating process (DGP)</strong>. In a
+          <span id="ref-dgp"></span>We call these assumptions the <strong>data-generating process (DGP)</strong>. In a
           perfect world, every child who receives the program would improve by exactly the same
           amount. But in reality some improve by 2 points, others by 6. There is individual
           variability around the true average effect, and our assumptions need to account for
@@ -131,14 +151,8 @@
 
         <h2>2. Parameters</h2>
 
-        <!-- Margin note: parameters vs estimates -->
-        <aside class="margin-note" style="top: 56rem;">
-          <span class="note-label">Remember</span>
-          Parameters live in the <em>population</em>. Estimates live in your <em>sample</em>. This distinction is the entire foundation of inferential statistics.
-        </aside>
-
         <p>
-          Once we have written down our DGP, the next question is: what exactly are we trying
+          <span id="ref-params"></span>Once we have written down our DGP, the next question is: what exactly are we trying
           to estimate? These are the <strong>parameters</strong> — the specific unknowns that,
           once pinned down, fully describe how the world is generating our data.
         </p>
@@ -174,14 +188,8 @@
 
         <h2>3. Criterion</h2>
 
-        <!-- Margin note: loss function -->
-        <aside class="margin-note amber" style="top: 82rem;">
-          <span class="note-label">ML connection</span>
-          In machine learning, the criterion is called a <strong>loss function</strong>. OLS's RSS is equivalent to mean squared error (MSE) — the most common loss in regression.
-        </aside>
-
         <p>
-          We now know which parameters we want to estimate. But there are many possible values
+          <span id="ref-loss"></span>We now know which parameters we want to estimate. But there are many possible values
           of $\hat{\beta}_1$ that could plausibly describe our data. How do we decide which one
           to go with? We need a rule — known as the <strong>criterion</strong> — that defines
           what "good" estimation looks like.
@@ -211,14 +219,8 @@
 
         <h2>4. Estimator</h2>
 
-        <!-- Margin note: Gauss-Markov -->
-        <aside class="margin-note green" style="top: 102rem;">
-          <span class="note-label">Gauss–Markov theorem</span>
-          When the DGP assumptions hold, OLS is the <strong>Best Linear Unbiased Estimator (BLUE)</strong> — no other linear unbiased estimator has lower variance. This is the mathematical warranty for using OLS.
-        </aside>
-
         <p>
-          The criterion tells us <em>what</em> we are optimising for. The <strong>estimator</strong>
+          <span id="ref-gauss"></span>The criterion tells us <em>what</em> we are optimising for. The <strong>estimator</strong>
           is the actual rule — a formula — that takes our data and produces a concrete value for
           $\hat{\beta}_1$. For OLS:
         </p>
@@ -260,14 +262,8 @@
 
         <h2>5. Solver</h2>
 
-        <!-- Margin note: MCMC preview -->
-        <aside class="margin-note purple" style="top: 131rem;">
-          <span class="note-label">Coming up</span>
-          The Bayesian chapter uses <strong>MCMC</strong> (Markov Chain Monte Carlo) as its solver — a stochastic algorithm that explores the full posterior distribution rather than finding a single point estimate.
-        </aside>
-
         <p>
-          Think of everything we have built so far as a maze. The architecture and parameters
+          <span id="ref-mcmc"></span>Think of everything we have built so far as a maze. The architecture and parameters
           define the maze itself. The criterion tells you how far you are from the exit at any
           given point. The estimator, when its assumptions are met, guarantees that an exit
           actually exists.
