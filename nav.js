@@ -74,6 +74,15 @@
         positionNotes(notesCol);
         setTimeout(() => positionNotes(notesCol), 500);
       });
+
+      // Expose helpers for pages that switch notes per stepper stage
+      window.__notesCol = notesCol;
+      window.switchStageNotes = function(stage) {
+        notesCol.querySelectorAll('.margin-note[data-stage]').forEach(n => {
+          n.hidden = (n.dataset.stage !== String(stage));
+        });
+        positionNotes(notesCol);
+      };
     }
 
     // Hamburger toggle

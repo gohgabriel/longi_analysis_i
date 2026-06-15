@@ -26,6 +26,40 @@
   <h1>What is Frequentist inference?</h1>
   <p class="subtitle">Building a sampling distribution of parameter values</p>
 
+  <!-- Stage 1 notes (sampling distribution) -->
+  <aside class="margin-note blue" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Fixed but unknown</span>
+    <em>θ</em><sub>true</sub> is a single number — the real programme effect in the population. It never changes. We just can't see it directly.
+  </aside>
+  <aside class="margin-note purple" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Hypothetical replications</span>
+    The sampling distribution only exists in theory. You never actually run the experiment 10,000 times — you imagine doing so. All frequentist logic rests on this thought experiment.
+  </aside>
+  <aside class="margin-note green" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Standard error</span>
+    The standard error is the standard deviation of the sampling distribution — how much <em>θ̂</em> would vary across replications. Larger samples → smaller SE → tighter distribution.
+  </aside>
+
+  <!-- Stage 2 notes (Neyman–Pearson) -->
+  <aside class="margin-note amber" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Known variance</span>
+    The spread is independent of <em>θ</em> only when variance is known. If variance is estimated from the data, we use a <em>t</em>-distribution instead — which has heavier tails to account for that extra uncertainty.
+  </aside>
+  <aside class="margin-note blue" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Limitation</span>
+    By anchoring to the null we give up any direct claim about where <em>θ</em><sub>true</sub> actually lies. A p-value tells you how surprising the data is under H₀ — not how probable H₀ is.
+  </aside>
+
+  <!-- Stage 3 notes (Fisher / likelihood) -->
+  <aside class="margin-note green" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">Likelihood connection</span>
+    The same curve doubles as a likelihood: P(data | <em>θ</em>). Each candidate <em>θ</em><sub>true</sub> value has a different probability of having produced your observed <em>θ̂</em>. The peak is the MLE.
+  </aside>
+  <aside class="margin-note purple" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">Coming up: Bayesian</span>
+    Bayesians take this likelihood and combine it with a prior belief distribution to form the posterior. The frequentist CI and the Bayesian credible interval look similar but mean very different things.
+  </aside>
+
   <div class="objectives">
     <div class="objectives-icon"><i data-lucide="target"></i></div>
     <div class="objectives-body">
@@ -45,6 +79,9 @@
     like sampling distributions, p-values, and confidence intervals. We will walk
     through these ideas step by step.</p>
   </div>
+
+  <!-- Anchor spans for stage margin notes -->
+  <span id="ref-s1-anchor"></span><span id="ref-s2-anchor"></span><span id="ref-s3-anchor"></span>
 
   <!-- Stepper -->
   <div class="stepper">
@@ -171,9 +208,8 @@ const STAGE_TEXT = {
   },
   2: {
     h: "2 · Testing against a null (Neyman–Pearson)",
-    body: "Since <em>θ</em><sub>true</sub> is unknown, the sampling distribution is also unknown. So frequentists run into a problem — how do they conduct statistical tests?<br><br>One perspective is that instead of trying to guess <em>θ</em><sub>true</sub>, we hypothesise a value (usually <em>θ</em>₀ = 0, meaning the programme has no effect) and centre the sampling distribution there. This &lsquo;trick&rsquo; works because the spread — the standard error — is set by the sample size and variability in the data, not by the value of <em>θ</em><sup class=\"fn\">*</sup>. So while we don&rsquo;t know where the peak sits, the shape of the distribution is the same.<br><br>This null-centred distribution lets us ask: if the programme truly had no effect, how often would chance alone produce an estimate as extreme as our observed β̂₁? That tail area is the <strong>p-value</strong>.<br><br>Note that by anchoring to the null, we give up any direct claim about where <em>θ</em><sub>true</sub> actually lies — we only know whether our estimate is surprising under the null. This is a genuine limitation of the Neyman–Pearson approach.",
+    body: "Since <em>θ</em><sub>true</sub> is unknown, the sampling distribution is also unknown. So frequentists run into a problem — how do they conduct statistical tests?<br><br>One perspective is that instead of trying to guess <em>θ</em><sub>true</sub>, we hypothesise a value (usually <em>θ</em>₀ = 0, meaning the programme has no effect) and centre the sampling distribution there. This &lsquo;trick&rsquo; works because the spread — the standard error — is set by the sample size and variability in the data, not by the value of <em>θ</em>. So while we don&rsquo;t know where the peak sits, the shape of the distribution is the same.<br><br>This null-centred distribution lets us ask: if the programme truly had no effect, how often would chance alone produce an estimate as extreme as our observed β̂₁? That tail area is the <strong>p-value</strong>.<br><br>Note that by anchoring to the null, we give up any direct claim about where <em>θ</em><sub>true</sub> actually lies — we only know whether our estimate is surprising under the null. This is a genuine limitation of the Neyman–Pearson approach.",
     key: "Neyman and Pearson add a decision rule: fix <em>α</em>, mark a rejection region, and reject H₀ if <em>θ̂</em> lands inside it. In our example: reject the hypothesis of zero programme effect if β̂₁ falls in the tail.",
-    note: "<span class=\"fn\">*</span> This is not always true, but holds here because we assume the variance is known. If the variance were also unknown we would estimate it from the sample and use a <em>t</em>-distribution instead.",
     footer: "The curve is centred at the null (θ₀ = 0, i.e. no programme effect). The solid line is your observed β̂₁; the shaded tail is the p-value. Toggle the rejection region to see the α = .05 decision boundary."
   },
   3: {
@@ -488,7 +524,6 @@ function refreshControls() {
   // explainer + footer
   const t = STAGE_TEXT[stage];
   let exHtml = `<h3>${t.h}</h3><div>${t.body}</div><span class="key">${t.key}</span>`;
-  if (t.note) exHtml += `<span class="footnote">${t.note}</span>`;
   document.getElementById('explainer').innerHTML = exHtml;
   document.getElementById('footer').innerHTML = t.footer;
 
@@ -513,6 +548,7 @@ function setStage(s) {
   [1,2,3].forEach(i => document.getElementById('step-'+i).classList.toggle('active', i === s));
   refreshControls();
   update();
+  if (window.switchStageNotes) window.switchStageNotes(s);
 }
 
 // ── Controls ───────────────────────────────────────────────────────────────
@@ -559,6 +595,7 @@ window.addEventListener('resize', resize);
 setMode('two');
 refreshControls();
 resize();
+setTimeout(() => { if (window.switchStageNotes) window.switchStageNotes(stage); }, 600);
 </script>
 </div><!-- /.page-body -->
 </body>

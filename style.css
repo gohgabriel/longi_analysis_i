@@ -191,6 +191,9 @@ body {
 .margin-note.green  { border-left-color: var(--green);  color: var(--green-text); }
 .margin-note.amber  { border-left-color: var(--amber);  color: var(--amber-text); }
 .margin-note.purple { border-left-color: var(--purple); color: var(--purple-text); }
+/* Stage-gated notes hidden until JS shows the active stage */
+.margin-note[data-stage] { display: none; }
+.margin-note[data-stage]:not([hidden]) { display: block; }
 
 /* ══════════════════════════════════════════════════
    RESPONSIVE

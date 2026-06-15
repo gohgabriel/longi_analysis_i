@@ -28,6 +28,40 @@
   <h1>What is Bayesian inference?</h1>
   <p class="subtitle">Combining prior knowledge with observed data</p>
 
+  <!-- Stage 1 notes (likelihood) -->
+  <aside class="margin-note blue" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Frequentist view</span>
+    Frequentists only extract the peak of the likelihood (the MLE) and discard the rest — because treating <em>θ</em> as a random variable is philosophically off-limits.
+  </aside>
+  <aside class="margin-note purple" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Philosophical note</span>
+    Bayesians reject sampling distributions entirely: with only one real experiment, hypothetical replications are metaphysical fiction.
+  </aside>
+  <aside class="margin-note green" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Special case</span>
+    For normal models with known variance, the sampling distribution and the likelihood are identical — frequentists and Bayesians literally look at the same curve.
+  </aside>
+
+  <!-- Stage 2 notes (prior) -->
+  <aside class="margin-note amber" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Uninformative prior</span>
+    Set <em>σ</em>₀ to a very large value (e.g. 20). The prior flattens out and the posterior converges on the likelihood — recovering the frequentist result.
+  </aside>
+  <aside class="margin-note blue" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Prior choices</span>
+    Common shapes: normal (symmetric belief), half-Cauchy (scale parameters that must be positive), or <em>t</em>-distribution (heavier tails = more scepticism about extreme values).
+  </aside>
+
+  <!-- Stage 3 notes (posterior) -->
+  <aside class="margin-note green" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">Precision weighting</span>
+    Posterior mean = (prior precision × prior mean + data precision × observed mean) / total precision. The sharper distribution wins.
+  </aside>
+  <aside class="margin-note purple" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">HDI vs CI</span>
+    A 95% credible interval is a direct probability statement: <em>P(θ ∈ HDI | data) = 0.95</em>. A frequentist 95% CI makes no such claim about the parameter — only about the procedure.
+  </aside>
+
   <div class="objectives">
     <div class="objectives-icon"><i data-lucide="target"></i></div>
     <div class="objectives-body">
@@ -42,59 +76,44 @@
   </div>
 
   <div class="prose" style="margin-bottom:1.5rem;">
-    <p>In the frequentist section, we saw that inference is built entirely from the data — the sampling distribution is centred on our estimate, and all uncertainty is derived from hypothetical replications. Bayesian inference takes a different stance: rather than treating <em>θ</em><sub>true</sub> as an unknown fixed value, it treats it as a <strong>random variable</strong> with a probability distribution. This allows us to incorporate prior knowledge directly into our analysis.</p>
-    <p>The result is Bayes&rsquo; theorem, which combines two sources of information — what the data says (the <span class="lbl-like">likelihood</span>), and what we believed before the data (the <span class="lbl-prior">prior</span>) — to produce an updated distribution called the <span class="lbl-post">posterior</span>:</p>
+    <p>In the frequentist section, we saw that while <em>θ</em><sub>true</sub> is (assumed to be) <strong>fixed</strong>, we can still construct and approximate a sampling distribution around it to perform statistical inference. However, this is a purely data-driven approach — the plausible values of <em>θ</em> are derived entirely from your data.</p>
+    <p>In practice, we rarely arrive at a study in a state of total ignorance. Theory, previous findings, or simple common sense often give us a reasonable expectation of where <em>θ</em><sub>true</sub> might lie — or at least where it almost certainly does not. For instance, if we want to know the average height of all humans on Earth, the value can't possibly be less than 0cm, and it is very unlikely to be above 200cm. Thus, incorporating prior knowledge can meaningfully improve our statistical reasoning.</p>
+    <p>Bayesian inference allows us to incorporate such prior knowledge. To do this, Bayesians assert that <em>θ</em> is not fixed, but <strong>random</strong> - i.e., it is not a fixed value at all, but something that can take a range of <em>plausible</em> values. Rather than letting the data speak alone, it combines two sources of information:</p>
+    <ul>
+      <li><span class="lbl-like">The likelihood:</span> what does the data tell us about the plausible values of <em>θ</em><sub>true</sub>?</li>
+      <li><span class="lbl-prior">The prior:</span> from your prior knowledge, what are the plausible values of <em>θ</em><sub>true</sub>?</li>
+    </ul>
+    <p>The result is the <span class="lbl-post">posterior</span> — the updated plausible values of <em>θ</em> after the experiment. Formally:</p>
   </div>
 
   <!-- Bayes formula -->
-  <div class="formula-row" style="margin-bottom: 0.5rem;">
+  <div class="formula-row" style="margin: 0.25rem 0 0.8rem;">
     <span class="f-post">p(θ | data)</span>
     <span class="f-op">∝</span>
     <span class="f-like">p(data | θ)</span>
     <span class="f-op">×</span>
     <span class="f-prior">p(θ)</span>
   </div>
-  <div class="formula-row" style="font-size:0.78rem; padding: 0.4rem 1rem; margin-bottom: 1.5rem;">
-    <span style="color:var(--green);">posterior</span>
-    <span style="color:var(--text-muted);">∝</span>
-    <span style="color:var(--blue);">likelihood (from data)</span>
-    <span style="color:var(--text-muted);">×</span>
-    <span style="color:var(--yellow);">prior (your belief)</span>
+  <div class="formula-row" style="font-size:0.78rem; padding: 0.4rem 1rem; margin-top: -0.8rem; margin-bottom: 1.5rem;">
+    <span style="color:var(--green)">posterior</span>
+    <span style="color:var(--text-muted)">∝</span>
+    <span style="color:var(--blue)">likelihood (from data)</span>
+    <span style="color:var(--text-muted)">×</span>
+    <span style="color:var(--yellow)">prior (your belief)</span>
   </div>
 
-  <!-- Tabs -->
-  <div class="tab-row">
-    <button class="tab-btn active-blue"   id="tab-btn-like"  onclick="setTab('like')">The likelihood</button>
-    <button class="tab-btn active-yellow" id="tab-btn-prior" onclick="setTab('prior')">The prior</button>
-    <button class="tab-btn active-green"  id="tab-btn-post"  onclick="setTab('post')">The posterior</button>
+  <!-- Anchor spans for stage margin notes — one per stage, sits just above the stepper -->
+  <span id="ref-s1-anchor"></span><span id="ref-s2-anchor"></span><span id="ref-s3-anchor"></span>
+
+  <!-- Stepper -->
+  <div class="stepper">
+    <button class="step active" id="step-1" onclick="setStage(1)"><span class="step-num">1</span>The<br>likelihood</button>
+    <button class="step"        id="step-2" onclick="setStage(2)"><span class="step-num">2</span>The<br>prior</button>
+    <button class="step"        id="step-3" onclick="setStage(3)"><span class="step-num">3</span>The<br>posterior</button>
   </div>
 
-  <div class="tab-panel active" id="tab-like">
-    <p>The likelihood describes how plausible each candidate value of <em>θ</em> is, given the data you observed. For every possible <em>θ</em>, it asks: how probable was the data I actually collected, if that <em>θ</em> were the true value?</p>
-    <p>For frequentists, the hard part about the likelihood is that <em>θ</em><sub>true</sub> is assumed to be fixed, so reasoning about &ldquo;candidate values of <em>θ</em><sub>true</sub>&rdquo; is illogical. Conventionally, frequentists calculate only the point estimate — the maximum-likelihood estimate <em>θ</em><sub>MLE</sub> — and discard the remaining candidate values. They then construct a sampling distribution around this <em>θ</em><sub>MLE</sub> to do their statistical reasoning.</p>
-    <p>Because Bayesians assume that <em>θ</em><sub>true</sub> itself is a <strong>random variable</strong>, they are instead able to work with the likelihood&rsquo;s full range of candidate values directly<span class="fn">*</span>. This difference is more <em>philosophical</em> than mathematical. In this demo&rsquo;s special case (a normal distribution with known variance), the sampling distribution centred at <em>θ̂</em> is identical to the likelihood<span class="fn">**</span>. Frequentists and Bayesians can thus be seen as interpreting the same object through different philosophical lenses.<span class="fn">***</span></p>
-    <span class="footnote">
-      <span class="fn">*</span> More accurately, Bayesians reject the notion that a sampling distribution is sound at all — since there is only one reality and one experiment, the idea of &ldquo;hypothetical replications&rdquo; is too metaphysical.<br>
-      <span class="fn">**</span> The sampling distribution and likelihood are not <em>always</em> identical, but for the location-scale families commonly used in the social sciences (e.g. the <em>t</em>-distribution), they coincide exactly or asymptotically.<br>
-      <span class="fn">***</span> This workshop aims to be philosophically neutral. Both views are defensible, and the debate remains open.
-    </span>
-  </div>
-
-  <div class="tab-panel" id="tab-prior">
-    <p>The prior encodes your belief about <em>θ</em> before seeing any data. It is a full probability distribution: you assign higher probability to values of <em>θ</em> you consider more plausible, and lower (or zero) probability to those you consider unlikely.</p>
-    <p>In practice, Bayesians typically specify a distributional shape for the prior — such as a normal, <em>t</em>-distribution, or half-Cauchy — and choose its parameters to reflect their beliefs. A <strong>wide prior</strong> spreads probability across a broad range of <em>θ</em> values, expressing near-ignorance. A <strong>narrow prior</strong> means you are very certain <em>θ</em> lies in a particular range.</p>
-    <p>As you will see in the demo below, when the prior is very wide it contributes almost nothing and the posterior converges on the likelihood alone — recovering the frequentist result almost exactly. The frequentist framework can therefore be treated as a special case of the Bayesian framework with a flat (uninformative) prior.</p>
-  </div>
-
-  <div class="tab-panel" id="tab-post">
-    <p>The posterior is the result of combining the two: the likelihood re-weights the prior, pulling it toward the values of <em>θ</em> supported by the data. It is your updated belief about <em>θ</em> after the experiment.</p>
-    <p>Unlike a frequentist analysis — which gives you a point estimate and a p-value — the posterior is a much richer object. From it you can extract:</p>
-    <ul>
-      <li><strong>Point estimate:</strong> the posterior mean E[<em>θ</em>], or the MAP (Maximum A Posteriori) — the single peak of the posterior.</li>
-      <li><strong>Credible intervals:</strong> a direct probability statement that <em>θ</em> lies within a given range. The 95% HDI (Highest Density Interval) is the shortest interval containing 95% of the posterior probability.</li>
-      <li><strong>Posterior tail probability:</strong> the probability that <em>θ</em> exceeds any threshold of interest — the Bayesian analogue of a p-value.</li>
-    </ul>
-  </div>
+  <!-- Explainer (JS-injected) -->
+  <div class="explainer" id="explainer"></div>
 
   <!-- Controls -->
   <div class="section-label" style="margin-top:1.5rem;">Prior (your belief before data)</div>
@@ -466,15 +485,38 @@ function cycleTail() {
   update();
 }
 
-// ── Tab switching ──────────────────────────────────────────────────────────────
-const TAB_COLOURS = { like: 'active-blue', prior: 'active-yellow', post: 'active-green' };
-function setTab(which) {
-  ['like', 'prior', 'post'].forEach(t => {
-    document.getElementById('tab-' + t).classList.remove('active');
-    document.getElementById('tab-btn-' + t).classList.remove(TAB_COLOURS[t]);
-  });
-  document.getElementById('tab-' + which).classList.add('active');
-  document.getElementById('tab-btn-' + which).classList.add(TAB_COLOURS[which]);
+// ── Per-stage copy ────────────────────────────────────────────────────────────
+const STAGE_TEXT = {
+  1: {
+    h: "1 &middot; The likelihood",
+    body: "The likelihood describes how plausible each candidate value of <em>&theta;</em> is, given the data you observed. For every possible <em>&theta;</em>, it asks: how probable was the data I actually collected, if that <em>&theta;</em> were the true value?<br><br>For frequentists, the hard part about the likelihood is that <em>&theta;</em><sub>true</sub> is assumed to be fixed, so reasoning about &ldquo;candidate values of <em>&theta;</em><sub>true</sub>&rdquo; is illogical. Conventionally, frequentists calculate only the point estimate &mdash; the maximum-likelihood estimate <em>&theta;</em><sub>MLE</sub> &mdash; and discard the remaining candidate values. They then construct a sampling distribution around this <em>&theta;</em><sub>MLE</sub> to do their statistical reasoning.<br><br>Because Bayesians assume that <em>&theta;</em><sub>true</sub> itself is a <strong>random variable</strong>, they are instead able to work with the likelihood&rsquo;s full range of candidate values directly. This difference is more <em>philosophical</em> than mathematical. In this demo&rsquo;s special case (a normal distribution with known variance), the sampling distribution centred at <em>&theta;&#770;</em> is identical to the likelihood. Frequentists and Bayesians can thus be seen as interpreting the same object through different philosophical lenses."
+  },
+  2: {
+    h: "2 &middot; The prior",
+    body: "The prior encodes your belief about <em>&theta;</em> before seeing any data. It is a full probability distribution: you assign higher probability to values of <em>&theta;</em> you consider more plausible, and lower (or zero) probability to those you consider unlikely.<br><br>In practice, Bayesians typically specify a distributional shape for the prior &mdash; such as a normal, <em>t</em>-distribution, or half-Cauchy &mdash; and choose its parameters to reflect their beliefs. A <strong>wide prior</strong> spreads probability across a broad range of <em>&theta;</em> values, expressing near-ignorance. A <strong>narrow prior</strong> means you are very certain <em>&theta;</em> lies in a particular range.<br><br>As you will see in the demo below, when the prior is very wide it contributes almost nothing and the posterior converges on the likelihood alone &mdash; recovering the frequentist result almost exactly. The frequentist framework can therefore be treated as a special case of the Bayesian framework with a flat (uninformative) prior.",
+    key: "Try setting the prior std &sigma;&#8320; to a very large value (e.g. 20). The posterior will converge almost entirely on the likelihood &mdash; recovering the frequentist result."
+  },
+  3: {
+    h: "3 &middot; The posterior",
+    body: "The posterior is the result of combining the two: the likelihood re-weights the prior, pulling it toward the values of <em>&theta;</em> supported by the data. It is your updated belief about <em>&theta;</em> after the experiment.<br><br>Unlike a frequentist analysis &mdash; which gives you a point estimate and a p-value &mdash; the posterior is a much richer object. From it you can extract:<br><ul style=\"margin: 0.5rem 0 0.5rem 1.2rem; line-height:1.7;\"><li><strong>Point estimate:</strong> the posterior mean E[<em>&theta;</em>], or the MAP (Maximum A Posteriori) &mdash; the single peak of the posterior.</li><li><strong>Credible intervals:</strong> a direct probability statement that <em>&theta;</em> lies within a given range. The 95% HDI (Highest Density Interval) is the shortest interval containing 95% of the posterior probability.</li><li><strong>Posterior tail probability:</strong> the probability that <em>&theta;</em> exceeds any threshold of interest &mdash; the Bayesian analogue of a p-value.</li></ul>",
+    key: "The posterior mean is a <strong>precision-weighted average</strong> of the prior mean and the observed &theta;&#770;. The sharper (more certain) distribution pulls the posterior toward it."
+  }
+};
+
+let stage = 1;
+
+function refreshExplainer() {
+  const t = STAGE_TEXT[stage];
+  let html = "<h3>" + t.h + "</h3><div>" + t.body + "</div>";
+  if (t.key) html += "<span class=\"key\">" + t.key + "</span>";
+  document.getElementById("explainer").innerHTML = html;
+}
+
+function setStage(s) {
+  stage = s;
+  [1,2,3].forEach(i => document.getElementById("step-"+i).classList.toggle("active", i === s));
+  refreshExplainer();
+  if (window.switchStageNotes) window.switchStageNotes(s);
 }
 
 // ── Sliders ────────────────────────────────────────────────────────────────────
@@ -501,8 +543,11 @@ document.getElementById('data-se').addEventListener('input', e => {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 window.addEventListener('resize', resize);
-setTab('like');
+setStage(1);
 resize();
+// nav.js builds #notes-col asynchronously (after toc.json fetch).
+// Re-run stage switch once it's ready so notes are shown and positioned correctly.
+setTimeout(() => { if (window.switchStageNotes) window.switchStageNotes(stage); }, 600);
 </script>
 </body>
 </html>
