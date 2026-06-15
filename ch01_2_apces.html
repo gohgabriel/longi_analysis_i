@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.2 The APCES Framework — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false}
+      ]
+    });">
+  </script>
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch01_2_apces"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>1.2 The APCES Framework</h1>
+      <p class="subtitle">Architecture, Parameters, Criterion, Estimator, Solver</p>
+
+      <div class="objectives">
+        <div class="obj-label">Learning objectives</div>
+        <ul>
+          <li>Decompose any statistical method into its five constituent components</li>
+          <li>Understand what each component contributes and why it matters</li>
+          <li>Apply the APCES lens to OLS as a worked example</li>
+        </ul>
+      </div>
+
+      <div class="prose">
+
+        <p>
+          Before looking at specific analysis methods, it helps to have a unified lens for
+          understanding what any method is actually doing. We describe that lens here:
+          every statistical method can be decomposed into five components —
+          <strong>Architecture, Parameters, Criterion, Estimator, Solver</strong>.
+        </p>
+
+        <hr>
+
+        <h2>1. Architecture</h2>
+
+        <p>
+          When evaluating a program, we typically start with a research question:
+        </p>
+
+        <blockquote style="border-left:3px solid var(--blue); padding:0.5rem 1rem; margin:1rem 0; font-style:italic; color:var(--text-muted);">
+          <strong style="color:var(--text)">RQ:</strong> After receiving the intervention, how much will its recipients improve?
+        </blockquote>
+
+        <p>
+          What we are actually saying is that, in the general population, there is some ground
+          truth — a number out there that perfectly quantifies this effect. We call this
+          $\theta_{\text{true}}$.
+        </p>
+
+        <p>
+          The catch is that $\theta_{\text{true}}$ is never directly observable. All we ever
+          have access to is data from our sample, and we work <em>backwards</em> from that
+          data to make our best guess. In this sense, data analysis is always a
+          reverse-engineering exercise.
+        </p>
+
+        <p>
+          Any number of different $\theta_{\text{true}}$ values could have plausibly generated
+          the data we observe. Without further constraints, the problem is hopelessly
+          underdetermined. This is where assumptions come in. By making explicit claims about
+          <em>how</em> $\theta_{\text{true}}$ generates data, we dramatically narrow the search
+          space and make the problem tractable.
+        </p>
+
+        <p>
+          We call these assumptions the <strong>data-generating process (DGP)</strong>. In a
+          perfect world, every child who receives the program would improve by exactly the same
+          amount. But in reality some improve by 2 points, others by 6. There is individual
+          variability around the true average effect, and our assumptions need to account for
+          that. We write them down as an equation:
+        </p>
+
+        $$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$$
+
+        <p>
+          A child's developmental score ($y$) is determined by some baseline level ($\beta_0$),
+          plus however much they improve over time ($\beta_1$), plus leftover noise ($\epsilon$).
+          We further assume that this noise averages to zero and has some characteristic spread
+          $\sigma^2$:
+        </p>
+
+        $$\epsilon \sim \mathcal{N}(0, \sigma^2)$$
+
+        <p>
+          Together, these two lines are your working theory of how the world produced the data
+          in front of you.
+        </p>
+
+        <div class="callout blue">
+          <div class="callout-title">Formally</div>
+          The architecture defines a family of probability distributions $p(y \mid \theta)$,
+          parameterised by $\theta_{\text{true}}$. Different architectural choices — what predicts
+          what, how errors behave, whether observations are independent — lead to entirely
+          different estimation strategies.
+        </div>
+
+        <h2>2. Parameters</h2>
+
+        <p>
+          Once we have written down our DGP, the next question is: what exactly are we trying
+          to estimate? These are the <strong>parameters</strong> — the specific unknowns that,
+          once pinned down, fully describe how the world is generating our data.
+        </p>
+
+        <p>
+          Reality is very complex — a child's developmental trajectory is shaped by countless
+          factors. Parameterisation is the act of boiling all of that complexity down into just
+          a few key numbers that capture the most important features of the story.
+        </p>
+
+        <p>
+          In our example, the parameters fall out naturally from the equation. We want to know
+          $\beta_1$ — the average improvement attributable to the program — and $\sigma^2$ —
+          how widely individual children vary around that average. Both are unknown; both need
+          to be estimated from data.
+        </p>
+
+        <p>
+          This points to a distinction worth holding onto. There is the <em>true</em> parameter
+          value in the population — $\theta_{\text{true}}$ — which we can never directly observe.
+          And there is our <em>estimated</em> value, $\hat{\theta}$ ("theta hat"), calculated
+          from our sample. The hat is a reminder that this is our best guess, not the truth
+          itself.
+        </p>
+
+        <p>In practice, parameters come in a few flavours:</p>
+
+        <ul>
+          <li><strong>Point estimates</strong> — our best single guess at each unknown (e.g. "the program improves scores by 4.2 points on average")</li>
+          <li><strong>Uncertainty estimates</strong> — how much that guess would vary across different samples (e.g. the standard error of $\hat{\beta}_1$)</li>
+          <li><strong>Covariance structure</strong> — how our estimates relate to one another (e.g. does a higher baseline $\hat{\beta}_0$ tend to go with a smaller estimated effect $\hat{\beta}_1$?)</li>
+        </ul>
+
+        <h2>3. Criterion</h2>
+
+        <p>
+          We now know which parameters we want to estimate. But there are many possible values
+          of $\hat{\beta}_1$ that could plausibly describe our data. How do we decide which one
+          to go with? We need a rule — known as the <strong>criterion</strong> — that defines
+          what "good" estimation looks like.
+        </p>
+
+        <p>
+          Think of it like a scoring system. For any candidate value of $\hat{\beta}_1$, the
+          criterion asks: how well does this estimate fit the data we collected? (In machine
+          learning, this is also called the <em>loss function</em>.)
+        </p>
+
+        <p>
+          A very common criterion is the one used by Ordinary Least Squares (OLS). If our model
+          predicts every child should improve by 4 points but some improved by 2 and others by 6,
+          there are residuals — discrepancies between predictions and observations. OLS says:
+          find the $\hat{\beta}_1$ that makes those residuals as small as possible. Formally:
+        </p>
+
+        $$\text{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2$$
+
+        <p>
+          The criterion is the bridge between your architectural assumptions and the actual
+          estimation procedure. Change the criterion, and you change what your estimates are
+          optimising for — which is why different methods can give different answers even on the
+          same data.
+        </p>
+
+        <h2>4. Estimator</h2>
+
+        <p>
+          The criterion tells us <em>what</em> we are optimising for. The <strong>estimator</strong>
+          is the actual rule — a formula — that takes our data and produces a concrete value for
+          $\hat{\beta}_1$. For OLS:
+        </p>
+
+        $$\hat{\beta} = (X^\top X)^{-1} X^\top y$$
+
+        <p>
+          Don't worry about the mechanics. The important thing is what it represents: a precise,
+          reproducible recipe that maps raw data to parameter estimates.
+        </p>
+
+        <p>
+          A good estimator comes with theoretical guarantees — mathematical proofs about how
+          estimates behave across many hypothetical repeated samples. The key properties are:
+        </p>
+
+        <ul>
+          <li><strong>Unbiasedness</strong> — on average, across many samples, the estimate lands on the truth. We might be off in any single sample, but we are not systematically wrong in any direction.</li>
+          <li><strong>Consistency</strong> — as sample size grows, the estimate converges to $\theta_{\text{true}}$. More data means we get closer to the truth.</li>
+          <li><strong>Efficiency</strong> — among all unbiased estimators, ours has the smallest variability across samples. It is not just right on average — it is as precise as possible.</li>
+        </ul>
+
+        <p>These guarantees only hold when certain assumptions about the DGP are met:</p>
+
+        <ul>
+          <li><strong>Correct specification</strong> — the functional form of the model actually reflects reality (e.g. the relationship is genuinely linear).</li>
+          <li><strong>Exogeneity</strong> — predictors are uncorrelated with the error term; no selection bias is baked into the data.</li>
+          <li><strong>Independence</strong> — one observation's residual tells us nothing about another's.</li>
+          <li><strong>Identical distribution</strong> — all errors are drawn from the same $\mathcal{N}(0, \sigma^2)$; no subject is systematically noisier than another.</li>
+        </ul>
+
+        <p>
+          When these assumptions hold, OLS satisfies all three properties above. This result —
+          the <strong>Gauss-Markov theorem</strong> — is the mathematical warranty that justifies
+          using OLS in the first place.
+        </p>
+
+        <h2>5. Solver</h2>
+
+        <p>
+          Think of everything we have built so far as a maze. The architecture and parameters
+          define the maze itself. The criterion tells you how far you are from the exit at any
+          given point. The estimator, when its assumptions are met, guarantees that an exit
+          actually exists.
+        </p>
+
+        <p>But none of that tells you how to <em>find</em> it.</p>
+
+        <p>
+          That is the job of the <strong>solver</strong> — the computational procedure that
+          navigates the maze and finds the parameter values satisfying your criterion. In simple
+          cases there is a direct path, calculable in one step. In more complex cases you have
+          to feel your way through iteratively.
+        </p>
+
+        <p>
+          In our OLS example, we are lucky — there is a clean analytical solution. Given the
+          RSS criterion, a closed-form formula jumps straight to the answer:
+        </p>
+
+        $$(X^\top X)\hat{\beta} = X^\top y$$
+
+        <p>No iteration required. But as models grow more complex, closed-form solutions become
+          unavailable, and solvers have to work harder. Common strategies include:</p>
+
+        <ul>
+          <li><strong>Iterative algorithms</strong> — start with a guess, compute how far you are from the exit, take a step in the right direction, repeat until convergence (e.g. Newton-Raphson, EM algorithm).</li>
+          <li><strong>Stochastic sampling</strong> — rather than finding a single exit, explore the entire maze probabilistically and map out all the plausible regions (e.g. MCMC, used in Bayesian inference).</li>
+        </ul>
+
+        <p>
+          The solver is the most invisible of the five components — it operates quietly in the
+          background every time you hit "run". But it matters: a poorly chosen solver can fail
+          to converge, get stuck, or give answers that look plausible but are subtly wrong.
+        </p>
+
+        <hr>
+
+        <h2>Summary: APCES Applied to OLS</h2>
+
+        <div style="overflow-x:auto; margin-bottom:1rem;">
+          <table style="width:100%; border-collapse:collapse; font-family:sans-serif; font-size:0.8rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600; white-space:nowrap;">Component</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600;">What it means</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600;">OLS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Architecture</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Assumptions about how the world generates data</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$, with $\epsilon \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$. Errors are independent, identically distributed, and homoscedastic.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Parameters</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The unknown quantities to estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\beta_0$ (baseline), $\beta_1$ (treatment effect), $\sigma^2$ (spread); estimated as $\hat{\beta}_0$, $\hat{\beta}_1$, $\hat{\sigma}^2$</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Criterion</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise RSS: $\sum(y_i - \hat{y}_i)^2$</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Estimator</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\hat{\beta} = (X^\top X)^{-1} X^\top y$. Under Gauss-Markov, this is the Best Linear Unbiased Estimator (BLUE).</td>
+              </tr>
+              <tr>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Solver</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The computational procedure that finds the answer</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Analytical: normal equations $(X^\top X)\hat{\beta} = X^\top y$, solved directly. No iteration required.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /.prose -->
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+</body>
+</html>

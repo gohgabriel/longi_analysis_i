@@ -8,25 +8,85 @@
       "type": "index"
     },
     {
-      "id": "ch01_intro",
-      "title": "1. Introduction",
-      "file": "ch01_intro.html",
+      "id": "ch01_1_intro",
+      "title": "1.1 What is longitudinal data?",
+      "file": "ch01_1_intro.html",
       "type": "prose",
-      "description": "Why repeated measures need special treatment"
+      "description": "Why repeated measures need special treatment",
+      "status": "draft"
     },
     {
-      "id": "frequentist_visualizer",
-      "title": "2. Frequentist Inference",
+      "id": "ch01_2_apces",
+      "title": "1.2 The APCES Framework",
+      "file": "ch01_2_apces.html",
+      "type": "prose",
+      "description": "Architecture, Parameters, Criterion, Estimator, Solver"
+    },
+    {
+      "id": "ch02_1_frequentist",
+      "title": "2.1 Frequentist inference",
       "file": "frequentist_visualizer.html",
       "type": "widget",
-      "description": "Interactive visualizer for frequentist inference concepts"
+      "description": "Interactive introduction to frequentist inference"
     },
     {
-      "id": "bayesian_posterior_visualizer",
-      "title": "3. Bayesian Inference",
+      "id": "ch02_2_ols",
+      "title": "2.2 Naïve OLS",
+      "file": "ch02_2_ols.html",
+      "type": "prose",
+      "description": "Between-groups regression and why it fails for longitudinal data",
+      "status": "draft"
+    },
+    {
+      "id": "ch02_3_gls",
+      "title": "2.3 Generalised Least Squares",
+      "file": "ch02_3_gls.html",
+      "type": "prose",
+      "description": "Modelling the covariance structure directly",
+      "status": "draft",
+      "case_studies": [
+        { "file": "case_study/multilevel_1.html", "label": "Case Study 1: Comparing OLS and GLS" }
+      ]
+    },
+    {
+      "id": "ch02_4_mlm",
+      "title": "2.4 Multilevel Models",
+      "file": "ch02_4_mlm.html",
+      "type": "prose",
+      "description": "Random effects and the multilevel model",
+      "status": "draft",
+      "case_studies": [
+        { "file": "case_study/multilevel_2.html", "label": "Case Study 2: Random intercepts" }
+      ]
+    },
+    {
+      "id": "ch02_5_sandwich",
+      "title": "2.5 Other methods",
+      "file": "ch02_5_sandwich.html",
+      "type": "prose",
+      "description": "Sandwich estimators and robust standard errors",
+      "status": "draft",
+      "case_studies": [
+        { "file": "case_study/multilevel_3.html", "label": "Case Study 3: Robust SEs" }
+      ]
+    },
+    {
+      "id": "ch03_1_bayesian",
+      "title": "3.1 Bayesian inference",
       "file": "bayesian_posterior_visualizer.html",
       "type": "widget",
-      "description": "Interactive visualizer for Bayesian posterior updating"
+      "description": "Interactive introduction to Bayesian posterior updating"
+    },
+    {
+      "id": "ch03_2_hb",
+      "title": "3.2 Hierarchical Bayes",
+      "file": "ch03_2_hb.html",
+      "type": "prose",
+      "description": "Bayesian multilevel models with priors on variance components",
+      "status": "draft",
+      "case_studies": [
+        { "file": "case_study/multilevel_4.html", "label": "Case Study 4: Hierarchical Bayes" }
+      ]
     }
   ]
 }
