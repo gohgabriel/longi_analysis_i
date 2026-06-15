@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2.1 Frequentist Inference — Longitudinal Data Analysis</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});">
+  </script>
   <style>
     /* Stepper — specific to this page */
     .stepper { display: flex; gap: 6px; margin-bottom: 1.25rem; }
@@ -41,6 +46,16 @@
   <div class="card">
   <h1>What is Frequentist inference?</h1>
   <p class="subtitle">Building a sampling distribution of parameter values</p>
+
+  <div class="prose" style="margin-bottom:1.5rem;">
+    <p>In the APCES framework, we built up a working theory of how data is generated
+    and how to estimate the quantities we care about. Frequentism is one philosophical
+    tradition that tells us how to <em>interpret</em> those estimates — through tools
+    like sampling distributions, p-values, and confidence intervals. We will walk
+    through these ideas step by step, using the programme evaluation example from the
+    previous chapter: $\theta_{\text{true}}$ represents the true programme effect of
+    time on children's developmental scores.</p>
+  </div>
 
   <!-- Stepper -->
   <div class="stepper">
@@ -160,10 +175,10 @@ const COL = {
 // ── Per-stage copy ────────────────────────────────────────────────────────────
 const STAGE_TEXT = {
   1: {
-    h: "1 · What a sampling distribution <em>is</em>",
-    body: "In the frequentist philosophy, we assume that there is some true <em>θ</em> value out there, which is the quantity of interest that we are trying to measure from data. Frequentists assert that <em>θ</em> is <strong>fixed</strong> (meaning it can only ever take one value), but <strong>unknown</strong>. For instance, the average height of all humans on planet Earth can only ever take one value, but it is unknown (or unknowable) unless we systematically measure the height of all humans which is not practical.<br><br>However, we can instead collect some data that we assume to be generated from this fixed unknown true value <em>θ</em>. So we conduct an experiment and collect some data, and we obtain a <em>θ̂</em> (e.g. the average height of all people in your sample).",
-    key: "The heart of all frequentist inference is that we assume that while we only collected data for a single (random) sample, we <em>could</em> have plausibly collected a different random sample in a “parallel universe”. We call this a <strong>hypothetical replication</strong>. Each hypothetical replication yields its own estimate <em>θ̂</em><sub>hypothetical</sub> — repeating this infinitely many times, that pile of <em>θ̂</em> values is the <strong>sampling distribution</strong> — centred on <em>θ</em><sub>true</sub>, with spread equal to the standard error.",
-    footer: "Drag “θ true” to move the population value; “Std error” sets the spread. Each dot is one hypothetical sample’s estimate. The dark dot is the single one you actually observe."
+    h: “1 · What a sampling distribution <em>is</em>”,
+    body: “In the frequentist philosophy, we assume that there is some true <em>θ</em> value out there — the quantity of interest we are trying to estimate from data. In our running example, <em>θ</em><sub>true</sub> is the true programme effect of time: by exactly how much does the intervention improve children’s developmental scores in the whole population? Frequentists assert that <em>θ</em> is <strong>fixed</strong> (it can only ever take one value), but <strong>unknown</strong>. The true programme effect is whatever it is — we just cannot observe it directly.<br><br>What we can do is collect a sample, run the analysis, and obtain an estimate <em>θ̂</em> — for instance, the estimated improvement from our particular group of children.”,
+    key: “The heart of all frequentist inference is that we assume that while we only collected data for a single (random) sample, we <em>could</em> have plausibly collected a different random sample in a “parallel universe”. We call this a <strong>hypothetical replication</strong>. Each hypothetical replication yields its own estimate <em>θ̂</em><sub>hypothetical</sub> — repeating this infinitely many times, that pile of <em>θ̂</em> values is the <strong>sampling distribution</strong> — centred on <em>θ</em><sub>true</sub>, with spread equal to the standard error.”,
+    footer: “Drag “θ true” to move the true programme effect; “Std error” sets the spread. Each dot is one hypothetical sample’s estimate. The dark dot is the single one you actually observe.”
   },
   2: {
     h: "2 · Testing against a null (Neyman–Pearson)",
