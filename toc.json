@@ -27,7 +27,7 @@
         {
           "id": "ch02_1_frequentist",
           "title": "2.1 Frequentist inference",
-          "file": "frequentist_visualizer.html",
+          "file": "ch02_1_frequentist.html",
           "type": "widget",
           "description": "Interactive introduction to frequentist inference"
         },
@@ -80,7 +80,7 @@
         {
           "id": "ch03_1_bayesian",
           "title": "3.1 Bayesian inference",
-          "file": "bayesian_posterior_visualizer.html",
+          "file": "ch03_1_bayesian.html",
           "type": "widget",
           "description": "Interactive introduction to Bayesian posterior updating"
         },
