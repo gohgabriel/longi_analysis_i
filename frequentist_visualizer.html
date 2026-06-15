@@ -11,30 +11,7 @@
     onload="document.querySelectorAll('.prose').forEach(el => renderMathInElement(el, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]}));">
   </script>
   <style>
-    /* Stepper — specific to this page */
-    .stepper { display: flex; gap: 6px; margin-bottom: 1.25rem; }
-    .step {
-      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
-      padding: 9px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: transparent; cursor: pointer;
-      font-family: sans-serif; font-size: 12px; color: var(--text-muted);
-      transition: all 0.15s; text-align: center; line-height: 1.2;
-    }
-    .step:hover { background: var(--surface-2); }
-    .step.active { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 600; }
-    .step-num {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 18px; height: 18px; border-radius: 50%; background: var(--border);
-      font-size: 11px; flex-shrink: 0;
-    }
-    .step.active .step-num { background: var(--blue); color: #fff; }
-
-    /* Explainer — extended styles beyond shared base */
-    .explainer .key {
-      display: block; margin-top: 0.7rem; padding-top: 0.7rem;
-      border-top: 1px dashed var(--border); color: var(--text-muted); font-size: 12px;
-    }
-
+    /* Page-specific overrides */
     .ctrl label { min-width: 90px; }
     .ctrl input[type=range] { accent-color: var(--blue); }
     .toggle-row:last-of-type { margin-bottom: 1.5rem; }

@@ -36,7 +36,7 @@
 
 /* ── Base ── */
 body {
-  font-family: 'Georgia', serif;
+  font-family: sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -68,7 +68,6 @@ body {
 }
 
 .nav-brand {
-  font-family: 'Georgia', serif;
   font-size: 0.88rem;
   color: var(--text);
   text-decoration: none;
@@ -83,7 +82,6 @@ body {
 }
 
 .nav-section-title {
-  font-family: sans-serif;
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -98,7 +96,6 @@ body {
 
 .nav-links a {
   display: block;
-  font-family: sans-serif;
   font-size: 0.78rem;
   color: var(--text-muted);
   text-decoration: none;
@@ -140,7 +137,6 @@ body {
 }
 
 #mobile-bar .mob-brand {
-  font-family: 'Georgia', serif;
   font-size: 0.85rem;
   color: var(--text);
   text-decoration: none;
@@ -222,14 +218,14 @@ body {
 
 h1 {
   font-size: 1.4rem;
-  font-weight: normal;
+  font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 0.25rem;
 }
 
 h2 {
   font-size: 1.1rem;
-  font-weight: normal;
+  font-weight: 600;
   letter-spacing: -0.01em;
   margin: 1.75rem 0 0.6rem;
 }
@@ -250,12 +246,10 @@ p {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-bottom: 1.75rem;
-  font-family: sans-serif;
 }
 
 .section-label {
   font-size: 0.7rem;
-  font-family: sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -310,7 +304,6 @@ p {
   border-radius: var(--radius-sm);
   padding: 0.9rem 1.1rem;
   margin-bottom: 1.25rem;
-  font-family: sans-serif;
   font-size: 0.82rem;
   line-height: 1.6;
 }
@@ -334,7 +327,6 @@ p {
   margin-bottom: 1.75rem;
 }
 .objectives .obj-label {
-  font-family: sans-serif;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -344,7 +336,6 @@ p {
 }
 .objectives ul { padding-left: 1.2rem; margin: 0; }
 .objectives li {
-  font-family: sans-serif;
   font-size: 0.82rem;
   color: var(--blue-text);
   line-height: 1.6;
@@ -358,7 +349,6 @@ p {
   padding-top: 1.25rem;
 }
 .case-studies .cs-label {
-  font-family: sans-serif;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -369,7 +359,6 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-family: sans-serif;
   font-size: 0.82rem;
   color: var(--blue);
   text-decoration: none;
@@ -388,7 +377,6 @@ p {
   gap: 1rem;
 }
 .chapter-nav a {
-  font-family: sans-serif;
   font-size: 0.8rem;
   color: var(--text-muted);
   text-decoration: none;
@@ -406,17 +394,17 @@ p {
 .controls { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
 
 .ctrl { display: flex; align-items: center; gap: 12px; }
-.ctrl label { font-family: sans-serif; font-size: 13px; color: var(--text-muted); }
+.ctrl label { font-size: 13px; color: var(--text-muted); }
 .ctrl input[type=range] { flex: 1; cursor: pointer; }
-.ctrl .val { font-family: sans-serif; font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; color: var(--text); }
+.ctrl .val { font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; color: var(--text); }
 
 /* ── Explainer box (visualizers) ── */
 .explainer {
   background: var(--surface-2); border-radius: var(--radius-sm);
   padding: 0.9rem 1.1rem; margin-bottom: 1.5rem;
-  font-family: sans-serif; font-size: 12.5px; line-height: 1.6; color: var(--text);
+  font-size: 0.82rem; line-height: 1.6; color: var(--text);
 }
-.explainer h3 { font-family: 'Georgia', serif; font-size: 1rem; font-weight: normal; margin-bottom: 0.4rem; }
+.explainer h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
 .explainer p  { margin-bottom: 0.6rem; }
 .explainer p:last-child { margin-bottom: 0; }
 .explainer em { font-style: italic; }
@@ -424,14 +412,91 @@ p {
 .explainer .footnote {
   display: block; margin-top: 0.7rem; padding-top: 0.6rem;
   border-top: 1px dashed var(--border); color: var(--text-muted);
-  font-size: 11px; line-height: 1.55;
+  font-size: 0.75rem; line-height: 1.55;
 }
 .explainer .fn { color: var(--blue); font-weight: 600; }
+
+/* ── Stepper (frequentist visualizer) ── */
+.stepper { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+.step {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; cursor: pointer;
+  font-size: 12px; color: var(--text-muted);
+  transition: all 0.15s; text-align: center; line-height: 1.2;
+}
+.step:hover { background: var(--surface-2); }
+.step.active { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 600; }
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--border);
+  font-size: 11px; flex-shrink: 0;
+}
+.step.active .step-num { background: var(--blue); color: #fff; }
+
+/* ── Explainer .key callout ── */
+.explainer .key {
+  display: block; margin-top: 0.7rem; padding-top: 0.7rem;
+  border-top: 1px dashed var(--border); color: var(--text-muted); font-size: 0.75rem;
+}
+
+/* ── Formula row (Bayesian visualizer) ── */
+.formula-row {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 0.85rem; color: var(--text-muted);
+  margin-bottom: 1.25rem; padding: 0.6rem 1rem;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+}
+.formula-row .f-post  { color: var(--green);  font-weight: 600; }
+.formula-row .f-like  { color: var(--blue);   font-weight: 600; }
+.formula-row .f-prior { color: var(--yellow); font-weight: 600; }
+.formula-row .f-op    { color: var(--text-muted); }
+
+/* ── Tabs (Bayesian visualizer) ── */
+.tab-row {
+  display: flex; gap: 0; margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1; padding: 7px 10px;
+  border: 1px solid transparent; border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: transparent; cursor: pointer;
+  font-size: 12px; color: var(--text-muted);
+  transition: all 0.15s; margin-bottom: -1px;
+}
+.tab-btn:hover { background: var(--surface-2); }
+.tab-btn.active-blue   { background: var(--surface); color: var(--blue-text);
+  border-color: var(--border); border-bottom-color: var(--surface); font-weight: 600; }
+.tab-btn.active-yellow { background: var(--surface); color: var(--yellow-text);
+  border-color: var(--border); border-bottom-color: var(--surface); font-weight: 600; }
+.tab-btn.active-green  { background: var(--surface); color: var(--green-text);
+  border-color: var(--border); border-bottom-color: var(--surface); font-weight: 600; }
+.tab-panel {
+  display: none;
+  background: var(--surface-2); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border: 1px solid var(--border); border-top: none;
+  padding: 0.9rem 1.1rem; margin-bottom: 1.5rem;
+  font-size: 0.82rem; line-height: 1.6; color: var(--text);
+}
+.tab-panel.active { display: block; }
+.tab-panel p  { margin-bottom: 0.6rem; }
+.tab-panel p:last-child { margin-bottom: 0; }
+.tab-panel em { font-style: italic; }
+.tab-panel .footnote {
+  display: block; margin-top: 0.7rem; padding-top: 0.6rem;
+  border-top: 1px dashed var(--border); color: var(--text-muted);
+  font-size: 0.75rem; line-height: 1.55;
+}
+.tab-panel .fn         { color: var(--blue);   font-weight: 600; }
+.tab-panel .lbl-like   { color: var(--blue);   font-weight: 600; }
+.tab-panel .lbl-prior  { color: var(--yellow); font-weight: 600; }
+.tab-panel .lbl-post   { color: var(--green);  font-weight: 600; }
 
 /* ── Stat chips (visualizers) ── */
 .stats { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .stat  { flex: 1; min-width: 120px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.75rem 1rem; }
-.stat-label { font-family: sans-serif; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .stat-value { font-size: 1.15rem; font-weight: normal; color: var(--text); letter-spacing: -0.02em; }
 .stat-value.small { font-size: 0.9rem; }
 
@@ -441,7 +506,7 @@ p {
   flex: 1; min-width: 120px; padding: 7px 10px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: transparent; cursor: pointer;
-  font-family: sans-serif; font-size: 12px; color: var(--text-muted);
+  font-size: 12px; color: var(--text-muted);
   transition: all 0.15s; white-space: nowrap;
 }
 .tog:hover { background: var(--surface-2); }
@@ -457,7 +522,7 @@ p {
 canvas { width: 100% !important; }
 
 /* ── Legend ── */
-.legend { display: flex; gap: 16px; font-family: sans-serif; font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap; }
 .legend span { display: flex; align-items: center; gap: 5px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
@@ -465,5 +530,5 @@ canvas { width: 100% !important; }
 .footer {
   margin-top: 1.5rem; padding-top: 1rem;
   border-top: 1px solid var(--border);
-  font-family: sans-serif; font-size: 11px; color: var(--text-muted); line-height: 1.6;
+  font-size: 0.75rem; color: var(--text-muted); line-height: 1.6;
 }
