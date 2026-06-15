@@ -68,9 +68,12 @@
       notesCol.appendChild(note);
     });
 
-    // Position notes after fonts/math render (small delay covers KaTeX reflow)
-    window.addEventListener('load', () => positionNotes(notesCol));
-    setTimeout(() => positionNotes(notesCol), 350);
+    // Position notes — run immediately, then again after KaTeX/fonts reflow
+    requestAnimationFrame(() => {
+      positionNotes(notesCol);
+      // Second pass after KaTeX has resized math blocks
+      setTimeout(() => positionNotes(notesCol), 500);
+    });
 
     // Hamburger toggle
     document.getElementById('hamburger').addEventListener('click', () => {
