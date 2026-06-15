@@ -3,80 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quick-start to Frequentist Inference</title>
+  <title>2.1 Frequentist Inference — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #f9f8f5;
-      --surface: #ffffff;
-      --surface-2: #f1efe8;
-      --border: rgba(0,0,0,0.1);
-      --text: #1a1a18;
-      --text-muted: #6b6a66;
-      --blue: #378ADD;
-      --blue-bg: #e6f1fb;
-      --blue-text: #0c447c;
-      --red: #E24B4A;
-      --green: #1D9E75;
-      --green-bg: #e1f5ee;
-      --green-text: #085041;
-      --purple: #8a5cc4;
-      --radius: 10px;
-      --radius-sm: 6px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #181816;
-        --surface: #222220;
-        --surface-2: #2c2c2a;
-        --border: rgba(255,255,255,0.1);
-        --text: #f0ede6;
-        --text-muted: #9e9c96;
-        --blue-bg: rgba(55,138,221,0.15);
-        --blue-text: #85b7eb;
-        --green-bg: rgba(29,158,117,0.15);
-        --green-text: #5dcaa5;
-        --purple: #ad88dd;
-      }
-    }
-
-    body {
-      font-family: 'Georgia', serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 2rem 1rem;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 2rem;
-      width: 100%;
-      max-width: 700px;
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      font-weight: normal;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.25rem;
-    }
-
-    .subtitle {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-bottom: 1.5rem;
-      font-family: sans-serif;
-    }
-
-    /* Stepper */
+    /* Stepper — specific to this page */
     .stepper { display: flex; gap: 6px; margin-bottom: 1.25rem; }
     .step {
       flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -94,73 +24,21 @@
     }
     .step.active .step-num { background: var(--blue); color: #fff; }
 
-    /* Explainer */
-    .explainer {
-      background: var(--surface-2); border-radius: var(--radius-sm);
-      padding: 0.9rem 1.1rem; margin-bottom: 1.5rem;
-      font-family: sans-serif; font-size: 12.5px; line-height: 1.6; color: var(--text);
-    }
-    .explainer h3 { font-family: 'Georgia', serif; font-size: 1rem; font-weight: normal; margin-bottom: 0.4rem; }
-    .explainer em { font-style: italic; }
+    /* Explainer — extended styles beyond shared base */
     .explainer .key {
       display: block; margin-top: 0.7rem; padding-top: 0.7rem;
       border-top: 1px dashed var(--border); color: var(--text-muted); font-size: 12px;
     }
-    .explainer .footnote {
-      display: block; margin-top: 0.7rem; padding-top: 0.6rem;
-      border-top: 1px dashed var(--border); color: var(--text-muted);
-      font-size: 11px; line-height: 1.55;
-    }
-    .explainer .fn { color: var(--blue); font-weight: 600; }
 
-    .section-label {
-      font-size: 0.7rem; font-family: sans-serif; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.6rem;
-    }
-
-    .controls { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
-    .ctrl { display: flex; align-items: center; gap: 12px; }
-    .ctrl label { font-family: sans-serif; font-size: 13px; color: var(--text-muted); min-width: 90px; }
-    .ctrl input[type=range] { flex: 1; accent-color: var(--blue); cursor: pointer; }
-    .ctrl .val { font-family: sans-serif; font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; color: var(--text); }
-
-    .toggle-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .ctrl label { min-width: 90px; }
+    .ctrl input[type=range] { accent-color: var(--blue); }
     .toggle-row:last-of-type { margin-bottom: 1.5rem; }
-    .tog {
-      flex: 1; min-width: 110px; padding: 7px 10px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: transparent; cursor: pointer;
-      font-family: sans-serif; font-size: 12px; color: var(--text-muted);
-      transition: all 0.15s; white-space: nowrap;
-    }
-    .tog:hover { background: var(--surface-2); }
-    .tog.active-blue { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 600; }
-    .tog.active-red { background: rgba(226,75,74,0.12); color: #7c1212; border-color: transparent; font-weight: 600; }
-    .tog.active-green { background: var(--green-bg); color: var(--green-text); border-color: transparent; font-weight: 600; }
-    .tog.active-purple { background: rgba(138,92,196,0.14); color: var(--purple); border-color: transparent; font-weight: 600; }
-
-    .stats { display: flex; gap: 10px; margin-bottom: 1.5rem; }
-    .stat { flex: 1; background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.75rem 1rem; }
-    .stat-label { font-family: sans-serif; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .stat-value { font-size: 1.3rem; font-weight: normal; color: var(--text); letter-spacing: -0.02em; }
-    .stat-value.small { font-size: 0.95rem; }
-
-    .legend { display: flex; gap: 16px; font-family: sans-serif; font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap; }
-    .legend span { display: flex; align-items: center; gap: 5px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-    .chart-wrap { position: relative; width: 100%; height: 280px; }
-    canvas { width: 100% !important; }
-
-    .footer {
-      margin-top: 1.5rem; padding-top: 1rem;
-      border-top: 1px solid var(--border);
-      font-family: sans-serif; font-size: 11px; color: var(--text-muted); line-height: 1.6;
-    }
   </style>
 </head>
 <body>
-<div class="card">
+  <script src="nav.js" data-page="ch02_1_frequentist"></script>
+  <div class="page-body">
+  <div class="card">
   <h1>What is Frequentist inference?</h1>
   <p class="subtitle">Building a sampling distribution of parameter values</p>
 
@@ -678,5 +556,6 @@ setMode('two');
 refreshControls();
 resize();
 </script>
+</div><!-- /.page-body -->
 </body>
 </html>
