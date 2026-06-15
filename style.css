@@ -149,7 +149,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+  padding: 2.5rem calc(var(--note-w) + 3rem) 2.5rem 2.5rem;
   width: 100%;
   max-width: calc(var(--prose-w) + var(--note-w) + 4rem);
   position: relative;
