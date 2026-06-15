@@ -7,3 +7,4 @@ brms
 bayesplot
 posterior
 broom.mixed
+rstanarm
