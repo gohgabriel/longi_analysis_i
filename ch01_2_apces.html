@@ -43,7 +43,7 @@
       <!-- ── Margin notes (nav.js moves these into #notes-col and positions them) ── -->
       <aside class="margin-note blue" data-ref="ref-theta">
         <span class="note-label">Notation</span>
-        $\theta_{\text{true}}$ is read "theta true" — the unknowable population value we are trying to approximate. $\hat\theta$ ("theta hat") is our estimate from the sample.
+        $\theta_{\text{true}}$ is read "theta true", standing for the real population value which we can never directly observe. $\hat\theta$ ("theta hat") is our estimate from the sample. The hat is a reminder that it is a best guess, not the truth.
       </aside>
 
       <aside class="margin-note" data-ref="ref-dgp">
@@ -63,12 +63,12 @@
 
       <aside class="margin-note green" data-ref="ref-gauss">
         <span class="note-label">Gauss–Markov theorem</span>
-        When the DGP assumptions hold, OLS is the <strong>Best Linear Unbiased Estimator (BLUE)</strong> — no other linear unbiased estimator has lower variance. This is the mathematical warranty for using OLS.
+        When the DGP assumptions hold, OLS is the <strong>Best Linear Unbiased Estimator (BLUE)</strong> — no other linear unbiased estimator has lower variance. This is the theorem that justifies why OLS is widely used for cross-sectional data.
       </aside>
 
       <aside class="margin-note purple" data-ref="ref-mcmc">
         <span class="note-label">Coming up</span>
-        The Bayesian chapter uses <strong>MCMC</strong> (Markov Chain Monte Carlo) as its solver — a stochastic algorithm that explores the full posterior distribution rather than finding a single point estimate.
+        The Bayesian chapter uses <strong>MCMC</strong> (Markov Chain Monte Carlo) as its solver — a stochastic algorithm that explores the full posterior distribution by drawing samples from it, rather than optimising toward a single answer.
       </aside>
 
       <!-- ── Prose ── -->
@@ -294,9 +294,11 @@
         </ul>
 
         <p>
-          The solver is the most invisible of the five components — it operates quietly in the
-          background every time you hit "run". But it matters: a poorly chosen solver can fail
-          to converge, get stuck, or give answers that look plausible but are subtly wrong.
+          The solver is the most invisible of the five components. It runs quietly in the background
+          every time you hit "run" and you never think about it. But as you (may?) learn, once you
+          use more complex methods, sometimes the default solvers that the software uses will break!
+          Solvers can fail to converge, get stuck, or give you answers that look fine but are
+          quietly wrong.
         </p>
 
         <hr>
@@ -347,12 +349,17 @@
           method, regardless of philosophical tradition. But the five components do not
           tell you how to <em>interpret</em> your estimates once you have them. That is
           where statistical philosophy comes in, and there are three major traditions that
-          answer this question differently: <strong>Frequentism</strong>, which interprets
-          estimates in terms of long-run behaviour across hypothetical repeated samples;
-          <strong>Bayesianism</strong>, which treats unknown parameters as probability
-          distributions and updates them in light of data; and
-          <strong>Modern ML / Empiricism</strong>, which sidesteps inference almost entirely
-          and focuses on predictive performance. The OLS example we walked through in this
+          answer this question differently:
+        </p>
+
+        <ul>
+            <li>Frequentism, which treats parameters as fixed unknowns and uses repeated-sampling logic to reason about uncertainty</li>
+            <li>Bayesianism, which treats unknown parameters as probability distributions and updates them in light of data</li>
+            <li>Modern ML / empiricism, which largely sidesteps inference and focuses on predictive performance instead</li>
+        </ul>
+
+        <p>
+          The OLS example we walked through in this
           chapter sits squarely in the frequentist tradition. In the next section, we dive
           deeper into what that means.
         </p>

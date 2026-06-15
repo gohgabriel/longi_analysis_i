@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -43,7 +43,7 @@
       <!-- ── Margin notes ── -->
       <aside class="margin-note" data-ref="ref-empirical">
         <span class="note-label">Empirical Bayes</span>
-        This hybrid approach — specifying a distribution over random effects but estimating its hyperparameters from the data — has a name: <strong>Empirical Bayes</strong>. In fact, multilevel models in <code>lme4</code> are estimated this way, using the James–Stein estimator.
+        Specifying a distribution over random effects but estimating its hyperparameters from the data is called <strong>Empirical Bayes</strong>. Multilevel models in <code>lme4</code> are estimated this way, using the James–Stein estimator.
       </aside>
 
       <aside class="margin-note blue" data-ref="ref-cauchy">
@@ -53,7 +53,7 @@
 
       <aside class="margin-note" data-ref="ref-closed">
         <span class="note-label">Closed form</span>
-        A "closed form" solution is one you can write as a tidy formula — like the OLS estimator $(X^\top X)^{-1} X^\top y$. When no such formula exists, you need a numerical algorithm to approximate the answer instead.
+        A "closed form" solution is one you can write as a tidy formula — like the OLS estimator $(X^\top X)^{-1} X^\top y$. When no such formula exists, you need a numerical algorithm to find the answer.
       </aside>
 
       <aside class="margin-note amber" data-ref="ref-rhat">
@@ -67,9 +67,8 @@
         <p>
           Welcome to the Bayesian world. It is not actually difficult to learn Hierarchical Bayes
           once you are familiar with multilevel models. Multilevel models account for within-person
-          correlations that naïve OLS ignored, giving us honest standard errors. However, we
-          treated $\beta_0$ and $\beta_1$ as fixed, unknowable quantities — points to be estimated
-          — while only $u_j$ and $\epsilon_{ij}$ were allowed to be random.
+          correlations that naïve OLS ignored, giving us honest standard errors. But we still treated $\beta_0$ and $\beta_1$ as fixed quantities while only $u_j$ and
+          $\epsilon_{ij}$ were allowed to be random.
         </p>
 
         <p>
@@ -115,10 +114,10 @@
         </p>
 
         <p>
-          The difference was that the multilevel model then estimated $\tau^2$ from the data using
-          frequentist tricks — maximising the REML likelihood — rather than putting a prior on
-          $\tau^2$ itself and reasoning about it probabilistically. Full hierarchical Bayes resolves
-          that awkwardness by placing priors on the variance components too, keeping the reasoning
+          The difference is that the multilevel model estimated $\tau^2$ from the data using
+          frequentist methods (maximising the REML likelihood), rather than putting a prior on it
+          and reasoning probabilistically all the way up. Full hierarchical Bayes resolves that
+          awkwardness by placing priors on the variance components too, keeping the reasoning
           entirely probabilistic from top to bottom.
         </p>
 
@@ -141,9 +140,9 @@
           scepticism that the intervention has a large effect. Then we choose a standard deviation
           wide enough to let the data speak. As you saw in Section 3.1, a very wide prior
           contributes almost nothing, and the posterior converges on the likelihood alone,
-          recovering the frequentist result. The prior only meaningfully pulls the estimate when it
-          is genuinely informative — when theory or previous research gives us a real reason to
-          believe the effect lies in a particular range.
+          recovering the frequentist result. The prior only really moves the estimate when it is actually informative. Typically, this
+          happens when you have theory or prior research (such as a meta-analysis) that tells you
+          the effect should land in a particular range.
         </p>
 
         <p>
@@ -153,9 +152,9 @@
           <strong>half-$t$</strong> distributions — normal-family distributions truncated at zero,
           so that all the probability mass sits on the positive side. These priors are weakly
           informative: they rule out negative variances, place most of their mass near zero, but
-          have heavy enough tails to accommodate large variances if the data demand it. The half-$t$
-          with a small degrees-of-freedom parameter ($\nu = 3$ or $\nu = 4$) is a common default,
-          offering a little more scepticism about very large variances than the half-Cauchy.
+          have fat enough tails that large variances can still happen. The
+          half-$t$ with a small degrees-of-freedom parameter ($\nu = 3$ or $\nu = 4$) is a common
+          default, offering a little more scepticism about very large variances than the half-Cauchy.
         </p>
 
         <hr>
@@ -163,20 +162,21 @@
         <h2>Criterion</h2>
 
         <p>
-          In OLS and GLS, the criterion was a quantity to minimise — the residual sum of squares,
+          In OLS and GLS, the criterion was something to minimise — the residual sum of squares,
           or a weighted version of it. In the frequentist multilevel model, it became a likelihood
-          to maximise. In hierarchical Bayes, the goal is different again: we are no longer looking
-          for a single best answer. We want to characterise the full <strong>joint posterior
-          distribution</strong> over all the parameters:
+          to maximise. In hierarchical Bayes, we are optimising the mixture between the data
+          (likelihood) and the prior (our initial belief). We want the full picture. The goal is
+          to characterise the full <strong>joint posterior distribution</strong> over all the
+          parameters:
         </p>
 
         $$p(\beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J \mid \text{data}) \;\propto\; p(\text{data} \mid \beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J) \times p(\beta_0, \beta_1, \tau, \sigma)$$
 
         <p>
           In plain language: the posterior is proportional to the likelihood of the data given all
-          the parameters, multiplied by the priors on those parameters. This is Bayes' theorem
-          applied to the full hierarchical model — the same logic from Section 3.1, but now
-          operating over a much richer parameter space.
+          the parameters, multiplied by the priors on those parameters. This is just Bayes'
+          theorem applied to the full hierarchical model. In Section 3.1 we demonstrated it for
+          a single parameter. Now, imagine that but for all the parameters in the model!
         </p>
 
         <hr>
@@ -230,9 +230,12 @@
           compute the 2.5th and 97.5th percentiles for a credible interval, or plot the full
           distribution. The most widely used variant in modern Bayesian software is the
           <strong>No-U-Turn Sampler (NUTS)</strong>, which navigates the posterior efficiently even
-          when it has complex geometry. MCMC is exact in the limit — given enough samples, it will
-          characterise the posterior arbitrarily well — but it is computationally expensive. For a
-          hierarchical model with many children, it can take minutes or hours to run.
+          when it has complex geometry. Contrary to popular belief, MCMC is actually an exact
+          method. This means that given enough samples, it will map the posterior as precisely as
+          you like. The catch is that it is very, <em>very</em> slow. For a hierarchical model
+          with many data points, you are looking at minutes or hours! (In Case Study 4, with 600+
+          observations, it can take around five minutes. If we had 5000 children, it would
+          probably take hours.)
         </p>
 
         <p>
@@ -257,8 +260,8 @@
         <h2>The limitation</h2>
 
         <p>
-          Hierarchical Bayes is the most principled of the three approaches we have covered, but
-          it asks the most of you in return.
+          Hierarchical Bayes is the most principled approach we have covered, but also the most
+          difficult to use well given its complexity with many 'researcher degrees of freedom'.
         </p>
 
         <p>
@@ -272,9 +275,12 @@
         <p>
           The second cost is prior sensitivity. The priors on $\beta_0$, $\beta_1$, $\tau$, and
           $\sigma$ all influence the posterior, and with small samples that influence can be
-          substantial. This is not unique to Bayes — frequentist estimates also depend on modelling
-          assumptions — but in Bayes the dependence is explicit, which means you are expected to
-          justify your choices and check how sensitive your conclusions are to them.
+          substantial. This is not unique to Bayes. As we have seen with the APCES framework, frequentist
+          estimates depend on modelling assumptions too in the DGP. The difference is that in
+          Bayes the dependence is (more) explicit. You are expected to justify your prior choices
+          and check how much your conclusions shift when you change them. With frequentist methods,
+          you can sort of 'cover' for when your assumptions are untenable if your readers are not
+          familiar with the methodology.
         </p>
 
         <p>

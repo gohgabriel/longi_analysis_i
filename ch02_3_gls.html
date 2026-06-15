@@ -63,17 +63,17 @@
       <!-- ── Margin notes ── -->
       <aside class="margin-note" data-ref="ref-naive">
         <span class="note-label">Reminder</span>
-        The <em>minimal fix</em> framing matters: GLS changes exactly one assumption. Everything else — the model equation, the criterion logic, the estimator shape — is preserved from OLS.
+        GLS changes exactly one assumption — how errors behave. Everything else (the model equation, the criterion logic, the estimator shape) is preserved from OLS. That is why we call it the minimal fix!
       </aside>
 
       <aside class="margin-note blue" data-ref="ref-matrix">
         <span class="note-label">What is a matrix?</span>
-        A matrix is a rectangular table of numbers. Where a single number $\sigma^2$ captures one fact about your errors, a matrix captures many facts at once — one per row–column pair. The $\Sigma$ matrix has one row and one column for every observation in the dataset.
+        A matrix is a rectangular table of numbers. A single number like $\sigma^2$ captures one fact about your errors. $\Sigma$ captures many — there is one entry for every pair of observations in the dataset, describing how they relate to each other.
       </aside>
 
       <aside class="margin-note" data-ref="ref-structure">
         <span class="note-label">Choosing a structure</span>
-        Most software will let you compare covariance structures using information criteria such as AIC or BIC. It is worth doing so rather than accepting the default.
+        Most software lets you compare covariance structures using AIC or BIC. Do this — do not just accept the default.
       </aside>
 
       <aside class="margin-note amber" data-ref="ref-weighted">
@@ -83,7 +83,7 @@
 
       <aside class="margin-note green" data-ref="ref-blue">
         <span class="note-label">Gauss–Markov for GLS</span>
-        When $\Sigma$ is correctly specified, $\hat{\beta}_{GLS}$ is BLUE — the Best Linear Unbiased Estimator. The same guarantee OLS had, now restored for correlated data.
+        When $\Sigma$ is correctly specified, $\hat{\beta}_{GLS}$ is BLUE — the Best Linear Unbiased Estimator. The same Gauss-Markov guarantee OLS had, but now valid for correlated data.
       </aside>
 
       <aside class="margin-note" data-ref="ref-fgls">
@@ -95,11 +95,11 @@
       <div class="prose">
 
         <p>
-          In the previous section, we learnt that naïve OLS gives us a reasonable estimate of the
-          treatment effect — but when the same children are measured at multiple time points, its
-          standard errors cannot be trusted. The problem is that OLS is making an assumption (
-          that all observations are independent of each other) that longitudinal data structurally violates.
-          And when that assumption breaks, the uncertainty estimates break with it.
+          In the previous section we saw that naïve OLS gives us a reasonable estimate of the
+          treatment effect. But when the same children are measured at multiple time points, its
+          standard errors cannot be trusted. The problem is that OLS is making an assumption
+          (that all observations are independent of each other) that longitudinal data structurally
+          violates. And when that assumption breaks, the uncertainty estimates break with it.
         </p>
 
         <p>
@@ -137,12 +137,12 @@
         </p>
 
         <p>
-          $\Sigma$ replaces that single number with a richer object — one that has a row and a
-          column for every observation in the dataset. The entries along its diagonal play the
+          $\Sigma$ replaces that single number with a full matrix, where we configure one row and
+          one column for every observation in the dataset. The entries along its diagonal play the
           same role $\sigma^2$ did: they describe how variable each observation is. But the
           off-diagonal entries say something new. They describe the relationship between pairs of
-          observations. When two observations belong to different children, those entries are zero
-          — one child's score tells us nothing about another's. When two observations belong to
+          observations. When two observations belong to different children, those entries are zero. Essentially,
+          one child's score tells us nothing about another's. When two observations belong to
           the same child, measured at t1 and t2, those entries can be positive — knowing a child
           scored high at t1 genuinely tells us something about their t2 score.
         </p>
@@ -361,17 +361,16 @@
         
         <p>
           GLS is a genuine improvement over naïve OLS for longitudinal data. By explicitly
-          modelling the within-person correlation, it produces standard errors that are honest,
-          and inference that can be trusted — provided the covariance structure is correctly
-          specified.
+          modelling the within-person correlation, it produces standard errors we can actually
+          trust. The catch is that you have to specify $\Sigma$ correctly first.
         </p>
 
         <p>
-          That proviso is the method's main vulnerability. GLS requires you to commit to a
-          specific form for $\Sigma$ before estimation, and the results are sensitive to that
-          choice. In practice, researchers often try several structures and compare them using
-          AIC or BIC, which helps — but it also adds a layer of modelling decisions that naïve
-          OLS never asked you to make.
+          This is the method's real vulnerability. We have to commit to a form for $\Sigma$ before
+          estimation (i.e. in the architecture step), and the results are sensitive to that
+          decision. In practice, most researchers try several structures and compare them with
+          AIC or BIC. That is one viable solution, but it is a layer of modelling choices which
+          widens 'researcher degrees of freedom'.
         </p>
 
         <hr>
@@ -379,11 +378,8 @@
         <h2>Case Study</h2>
 
         <p>
-          The ideas covered in this section — OLS, GLS, and the difference their covariance
-          assumptions make in practice — are brought together in a worked example. The case study
-          fits both models to the same longitudinal dataset and compares their standard errors,
-          confidence intervals, and conclusions side by side, making concrete what the theory
-          can only gesture at.
+          The ideas from this section come together in a worked example. We fit both OLS and GLS
+          models to the same dataset, so you can see how the results differ in practice.
         </p>
 
         <a class="case-study-link" href="case_study/multilevel_1.html" target="_blank">
