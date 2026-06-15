@@ -1,0 +1,32 @@
+{
+  "course": "Longitudinal Data Analysis",
+  "chapters": [
+    {
+      "id": "ch00_index",
+      "title": "Home",
+      "file": "index.html",
+      "type": "index"
+    },
+    {
+      "id": "ch01_intro",
+      "title": "1. Introduction",
+      "file": "ch01_intro.html",
+      "type": "prose",
+      "description": "Why repeated measures need special treatment"
+    },
+    {
+      "id": "frequentist_visualizer",
+      "title": "2. Frequentist Inference",
+      "file": "frequentist_visualizer.html",
+      "type": "widget",
+      "description": "Interactive visualizer for frequentist inference concepts"
+    },
+    {
+      "id": "bayesian_posterior_visualizer",
+      "title": "3. Bayesian Inference",
+      "file": "bayesian_posterior_visualizer.html",
+      "type": "widget",
+      "description": "Interactive visualizer for Bayesian posterior updating"
+    }
+  ]
+}

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick-start to Frequentist Inference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f9f8f5;
+      --surface: #ffffff;
+      --surface-2: #f1efe8;
+      --border: rgba(0,0,0,0.1);
+      --text: #1a1a18;
+      --text-muted: #6b6a66;
+      --blue: #378ADD;
+      --blue-bg: #e6f1fb;
+      --blue-text: #0c447c;
+      --red: #E24B4A;
+      --green: #1D9E75;
+      --green-bg: #e1f5ee;
+      --green-text: #085041;
+      --purple: #8a5cc4;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #181816;
+        --surface: #222220;
+        --surface-2: #2c2c2a;
+        --border: rgba(255,255,255,0.1);
+        --text: #f0ede6;
+        --text-muted: #9e9c96;
+        --blue-bg: rgba(55,138,221,0.15);
+        --blue-text: #85b7eb;
+        --green-bg: rgba(29,158,117,0.15);
+        --green-text: #5dcaa5;
+        --purple: #ad88dd;
+      }
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: normal;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      font-family: sans-serif;
+    }
+
+    /* Stepper */
+    .stepper { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+    .step {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 9px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: transparent; cursor: pointer;
+      font-family: sans-serif; font-size: 12px; color: var(--text-muted);
+      transition: all 0.15s; text-align: center; line-height: 1.2;
+    }
+    .step:hover { background: var(--surface-2); }
+    .step.active { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 600; }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: 50%; background: var(--border);
+      font-size: 11px; flex-shrink: 0;
+    }
+    .step.active .step-num { background: var(--blue); color: #fff; }
+
+    /* Explainer */
+    .explainer {
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 0.9rem 1.1rem; margin-bottom: 1.5rem;
+      font-family: sans-serif; font-size: 12.5px; line-height: 1.6; color: var(--text);
+    }
+    .explainer h3 { font-family: 'Georgia', serif; font-size: 1rem; font-weight: normal; margin-bottom: 0.4rem; }
+    .explainer em { font-style: italic; }
+    .explainer .key {
+      display: block; margin-top: 0.7rem; padding-top: 0.7rem;
+      border-top: 1px dashed var(--border); color: var(--text-muted); font-size: 12px;
+    }
+    .explainer .footnote {
+      display: block; margin-top: 0.7rem; padding-top: 0.6rem;
+      border-top: 1px dashed var(--border); color: var(--text-muted);
+      font-size: 11px; line-height: 1.55;
+    }
+    .explainer .fn { color: var(--blue); font-weight: 600; }
+
+    .section-label {
+      font-size: 0.7rem; font-family: sans-serif; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.6rem;
+    }
+
+    .controls { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .ctrl { display: flex; align-items: center; gap: 12px; }
+    .ctrl label { font-family: sans-serif; font-size: 13px; color: var(--text-muted); min-width: 90px; }
+    .ctrl input[type=range] { flex: 1; accent-color: var(--blue); cursor: pointer; }
+    .ctrl .val { font-family: sans-serif; font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; color: var(--text); }
+
+    .toggle-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .toggle-row:last-of-type { margin-bottom: 1.5rem; }
+    .tog {
+      flex: 1; min-width: 110px; padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: transparent; cursor: pointer;
+      font-family: sans-serif; font-size: 12px; color: var(--text-muted);
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tog:hover { background: var(--surface-2); }
+    .tog.active-blue { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 600; }
+    .tog.active-red { background: rgba(226,75,74,0.12); color: #7c1212; border-color: transparent; font-weight: 600; }
+    .tog.active-green { background: var(--green-bg); color: var(--green-text); border-color: transparent; font-weight: 600; }
+    .tog.active-purple { background: rgba(138,92,196,0.14); color: var(--purple); border-color: transparent; font-weight: 600; }
+
+    .stats { display: flex; gap: 10px; margin-bottom: 1.5rem; }
+    .stat { flex: 1; background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.75rem 1rem; }
+    .stat-label { font-family: sans-serif; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 1.3rem; font-weight: normal; color: var(--text); letter-spacing: -0.02em; }
+    .stat-value.small { font-size: 0.95rem; }
+
+    .legend { display: flex; gap: 16px; font-family: sans-serif; font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .chart-wrap { position: relative; width: 100%; height: 280px; }
+    canvas { width: 100% !important; }
+
+    .footer {
+      margin-top: 1.5rem; padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-family: sans-serif; font-size: 11px; color: var(--text-muted); line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>What is Frequentist inference?</h1>
+  <p class="subtitle">Building a sampling distribution of parameter values</p>
+
+  <!-- Stepper -->
+  <div class="stepper">
+    <button class="step active" id="step-1" onclick="setStage(1)"><span class="step-num">1</span>Sampling<br>distribution</button>
+    <button class="step" id="step-2" onclick="setStage(2)"><span class="step-num">2</span>Null-centred<br>(Neyman–Pearson)</button>
+    <button class="step" id="step-3" onclick="setStage(3)"><span class="step-num">3</span>Estimate-centred<br>(Fisher's likelihood)</button>
+  </div>
+
+  <!-- Explainer -->
+  <div class="explainer" id="explainer"></div>
+
+  <div class="section-label">Parameters</div>
+  <div class="controls">
+    <div class="ctrl">
+      <label id="theta-label">θ̂ observed</label>
+      <input type="range" min="-6" max="6" step="0.1" value="3" id="theta">
+      <span class="val" id="theta-out">3</span>
+    </div>
+    <div class="ctrl">
+      <label>Std error</label>
+      <input type="range" min="0.5" max="3" step="0.1" value="1.5" id="se">
+      <span class="val" id="se-out">1.5</span>
+    </div>
+  </div>
+
+  <div class="section-label" id="testtype-label">Test type</div>
+  <div class="toggle-row" id="testtype-row">
+    <button class="tog" id="btn-lt" onclick="setMode('lt')">one-tailed (mass &lt; 0)</button>
+    <button class="tog" id="btn-gt" onclick="setMode('gt')">one-tailed (mass &gt; 0)</button>
+    <button class="tog active-red" id="btn-two" onclick="setMode('two')">two-tailed</button>
+  </div>
+
+  <div class="toggle-row" id="extra-row">
+    <button class="tog" id="btn-draw" onclick="redraw()">redraw samples</button>
+    <button class="tog" id="btn-rej" onclick="toggleRej()">rejection region</button>
+    <button class="tog" id="btn-ci" onclick="toggleCI()">95% CI</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label" id="stat-label-1">p-value</div>
+      <div class="stat-value" id="stat-val-1">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" id="stat-label-2">% crossing threshold</div>
+      <div class="stat-value" id="stat-val-2">—</div>
+    </div>
+    <div class="stat" id="stat-3" style="display:none;">
+      <div class="stat-label" id="stat-label-3">95% CI</div>
+      <div class="stat-value small" id="stat-val-3">—</div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart" role="img" aria-label="Distribution visualisation"></canvas>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+// ── Math helpers ──────────────────────────────────────────────────────────────
+function normalPDF(x, mu, sigma) {
+  return Math.exp(-0.5*((x-mu)/sigma)**2) / (sigma*Math.sqrt(2*Math.PI));
+}
+function erf(x) {
+  const sign = x >= 0 ? 1 : -1; x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t = 1/(1+p*x);
+  return sign*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));
+}
+function normalCDF(x, mu, sigma) { return 0.5*(1+erf((x-mu)/(sigma*Math.sqrt(2)))); }
+function fmt(v) { return Math.abs(v-Math.round(v)) < 0.001 ? Math.round(v).toString() : v.toFixed(1); }
+function randNorm() { // standard normal via Box–Muller
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+// ── Constants & state ───────────────────────────────────────────────────────
+const Z95 = 1.96;          // two-tailed 95%
+const Z90 = 1.645;         // one-tailed 5%
+const X_MIN = -10, X_MAX = 10;
+const STEPS = 400;
+let theta = 3, se = 1.5, mode = 'two', stage = 1;
+let showCI = false, showRej = false;
+
+// Pre-generated standard-normal draws for stage 1 (so dots move coherently with sliders)
+let samples = [];
+function genSamples(n) {
+  samples = [];
+  for (let i = 0; i < n; i++) samples.push({ z: randNorm(), jit: Math.random() });
+}
+genSamples(45);
+
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const COL = {
+  blue:       '#378ADD',
+  blueFill:   isDark ? 'rgba(55,138,221,0.18)' : 'rgba(55,138,221,0.12)',
+  red:        '#E24B4A',
+  redFill:    isDark ? 'rgba(226,75,74,0.55)'  : 'rgba(226,75,74,0.35)',
+  green:      '#1D9E75',
+  purple:     isDark ? '#ad88dd' : '#8a5cc4',
+  purpleFill: isDark ? 'rgba(138,92,196,0.22)' : 'rgba(138,92,196,0.16)',
+  ciFill:     isDark ? 'rgba(138,92,196,0.18)' : 'rgba(138,92,196,0.10)',
+  muted:      isDark ? '#9e9c96' : '#6b6a66',
+  dot:        isDark ? 'rgba(55,138,221,0.45)' : 'rgba(55,138,221,0.4)',
+  grid:       isDark ? 'rgba(255,255,255,0.07)': 'rgba(0,0,0,0.06)',
+  axis:       isDark ? 'rgba(255,255,255,0.25)': 'rgba(0,0,0,0.15)',
+  tick:       isDark ? '#9e9c96' : '#6b6a66',
+  pillBg:     isDark ? 'rgba(34,34,32,0.95)'   : 'rgba(255,255,255,0.95)',
+};
+
+// ── Per-stage copy ────────────────────────────────────────────────────────────
+const STAGE_TEXT = {
+  1: {
+    h: "1 · What a sampling distribution <em>is</em>",
+    body: "In the frequentist philosophy, we assume that there is some true <em>θ</em> value out there, which is the quantity of interest that we are trying to measure from data. Frequentists assert that <em>θ</em> is <strong>fixed</strong> (meaning it can only ever take one value), but <strong>unknown</strong>. For instance, the average height of all humans on planet Earth can only ever take one value, but it is unknown (or unknowable) unless we systematically measure the height of all humans which is not practical.<br><br>However, we can instead collect some data that we assume to be generated from this fixed unknown true value <em>θ</em>. So we conduct an experiment and collect some data, and we obtain a <em>θ̂</em> (e.g. the average height of all people in your sample).",
+    key: "The heart of all frequentist inference is that we assume that while we only collected data for a single (random) sample, we <em>could</em> have plausibly collected a different random sample in a “parallel universe”. We call this a <strong>hypothetical replication</strong>. Each hypothetical replication yields its own estimate <em>θ̂</em><sub>hypothetical</sub> — repeating this infinitely many times, that pile of <em>θ̂</em> values is the <strong>sampling distribution</strong> — centred on <em>θ</em><sub>true</sub>, with spread equal to the standard error.",
+    footer: "Drag “θ true” to move the population value; “Std error” sets the spread. Each dot is one hypothetical sample’s estimate. The dark dot is the single one you actually observe."
+  },
+  2: {
+    h: "2 · Testing against a null (Neyman–Pearson)",
+    body: "Since <em>θ</em><sub>true</sub> is unknown, the sampling distribution is also unknown. So frequentists run into a problem — how do they conduct statistical tests?<br><br>One perspective is that instead of trying to guess <em>θ</em><sub>true</sub>, we can instead hypothesise a value (usually <em>θ</em>₀ = 0) and centre the peak of the sampling distribution there. This ‘trick’ works because the spread of the sampling distribution — the standard error — is set by the sample size and the variability in the data, not by the value of <em>θ</em><sup class=\"fn\">*</sup>. Thus, while we don't know the peak of <em>θ</em>, the shape of the distribution is still the same.<br><br>This version of the sampling distribution, with its peak at <em>θ</em> = 0, is called the <strong><em>null</em> distribution</strong>. Next, we can ask: if the null were true, how often would chance alone throw up an estimate as extreme as the <em>θ̂</em> we observed from our experiment? That tail area is the <strong>p-value</strong>.<br><br>You may note that since we give up trying to guess <em>θ</em><sub>true</sub>, this hypothesis testing approach means that we really have no idea if our current <em>θ̂</em> is close to <em>θ</em><sub>true</sub> or not — only our best, educated guess. This is a generally true limitation of frequentist statistics.",
+    key: "Neyman and Pearson add a decision rule: fix <em>α</em>, mark a rejection region, and reject H₀ if <em>θ̂</em> lands inside it.",
+    note: "<span class=\"fn\">*</span> This is not always true, but for the purposes of this demo's special case, it is true. E.g. here we assume the variance is known, so the curve stays a normal distribution; but if the variance is also unknown, we can also estimate it from the sample and use a <em>t</em>-distribution instead. For now we'll keep things normal for simplicity.",
+    footer: "The curve is centred at the null (θ₀ = 0). The solid line is your observed θ̂; the shaded tail beyond it is the p-value. Toggle the rejection region to see the α = .05 decision boundary."
+  },
+  3: {
+    h: "3 · Centering on the estimate (Fisher’s likelihood)",
+    body: "Instead of assuming that <em>θ</em> = 0 (which can be a bit unintuitive), we can also approximate the sampling distribution by setting the peak of <em>θ</em> to your observed <em>θ̂</em>. This works because <em>θ̂</em> is our best guess — the maximum-likelihood estimate — of the true <em>θ</em>. When we do it this way, we are asking: Assuming that <em>θ̂</em> is <em>θ<sub>true</sub></em>, how frequently will we get a <em>θ̂</em> that is ≤ 0? <br><br> Read this way, the p-value is simply the frequency / percentage of the infinitely many hypothetical experiments whose <em>θ̂</em> crosses the <em>θ</em> = 0 threshold. (In a two-tailed test, our hypothesis is simply that <em>θ</em> ≠ 0 so we mirror the calculation to the other side of 0.) The null-centered and the estimate-centered are mathematically identical and give the <em>exact same</em> p-value.",
+    key: "This is also called the <strong>likelihood</strong> perspective. In this demo’s special case, the same curve below is also equal to the likelihood, P(data | <em>θ</em>). You observed one <em>θ̂</em> from your data — but infinitely many candidate <em>θ</em><sub>true</sub> values could have produced that data too, each with a lower likelihood. The distribution of those candidate <em>θ</em><sub>true</sub> values is exactly what the <em>likelihood</em> describes. We will revisit this idea again later in the section on Bayesian statistics.",
+    footer: "The curve is centred at your observed θ̂. The shaded area crossing the null (0) is the p-value — the same number as step 2. Read as a likelihood, the spread is the plausible range of θ values consistent with your data (the CI)."
+  }
+};
+
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+const PAD = { top: 88, right: 16, bottom: 36, left: 16 };
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width  = rect.width  + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(dpr, dpr);
+  draw();
+}
+
+function cw() { return canvas.width  / (window.devicePixelRatio||1); }
+function ch() { return canvas.height / (window.devicePixelRatio||1); }
+function plotW() { return cw() - PAD.left - PAD.right; }
+function plotH() { return ch() - PAD.top  - PAD.bottom; }
+function xToP(x) { return PAD.left + (x - X_MIN) / (X_MAX - X_MIN) * plotW(); }
+function yToP(y, yMax) { return PAD.top + (1 - y / yMax) * plotH(); }
+
+// ── Drawing primitives ──────────────────────────────────────────────────────
+function curve(center, yMax, fill) {
+  // filled body
+  if (fill) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(xToP(X_MIN), yToP(0, yMax));
+    for (let i = 0; i <= STEPS; i++) {
+      const x = X_MIN + (X_MAX-X_MIN)*i/STEPS;
+      ctx.lineTo(xToP(x), yToP(normalPDF(x, center, se), yMax));
+    }
+    ctx.lineTo(xToP(X_MAX), yToP(0, yMax));
+    ctx.closePath();
+    ctx.fillStyle = COL.blueFill;
+    ctx.fill();
+    ctx.restore();
+  }
+  // stroke
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i <= STEPS; i++) {
+    const x = X_MIN + (X_MAX-X_MIN)*i/STEPS;
+    const y = yToP(normalPDF(x, center, se), yMax);
+    i === 0 ? ctx.moveTo(xToP(x), y) : ctx.lineTo(xToP(x), y);
+  }
+  ctx.strokeStyle = COL.blue;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function tail(lo, hi, center, yMax, fillCol, strokeCol, striped) {
+  lo = Math.max(lo, X_MIN); hi = Math.min(hi, X_MAX);
+  if (hi <= lo) return;
+  const s = Math.max(2, Math.ceil(STEPS * (hi-lo)/(X_MAX-X_MIN)));
+  // region path
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(xToP(lo), yToP(0, yMax));
+  for (let i = 0; i <= s; i++) {
+    const x = lo + (hi-lo)*i/s;
+    ctx.lineTo(xToP(x), yToP(normalPDF(x, center, se), yMax));
+  }
+  ctx.lineTo(xToP(hi), yToP(0, yMax));
+  ctx.closePath();
+  if (striped) {
+    // faint base wash
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // diagonal hatching, clipped to the region
+    ctx.clip();
+    const yTop = PAD.top, yBot = PAD.top + plotH(), span = yBot - yTop;
+    ctx.strokeStyle = strokeCol || COL.red;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.85;
+    const gap = 7;
+    for (let px = xToP(lo) - span; px < xToP(hi) + span; px += gap) {
+      ctx.beginPath();
+      ctx.moveTo(px, yTop);
+      ctx.lineTo(px + span, yBot);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+  }
+  ctx.restore();
+  // stroke top edge of curve over the region
+  if (strokeCol) {
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i <= s; i++) {
+      const x = lo + (hi-lo)*i/s;
+      const yp = yToP(normalPDF(x, center, se), yMax);
+      i === 0 ? ctx.moveTo(xToP(x), yp) : ctx.lineTo(xToP(x), yp);
+    }
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function vline(val, dash, color, label, slot) {
+  const xp = xToP(val);
+  if (xp < PAD.left - 1 || xp > PAD.left + plotW() + 1) return;
+  const PH = plotH();
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top+PH);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]);
+  if (label) {
+    ctx.font = '11px sans-serif';
+    const tw = ctx.measureText(label).width;
+    const px = 5, bh = 18, bw = tw + px*2;
+    let lx = xp - bw/2;
+    lx = Math.max(PAD.left, Math.min(PAD.left+plotW()-bw, lx));
+    const ly = PAD.top - bh - 4 - (slot || 0) * 24;
+    ctx.fillStyle = COL.pillBg; ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(lx, ly, bw, bh, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, lx+px, ly+bh/2);
+  }
+  ctx.restore();
+}
+
+function axes(yMax) {
+  const PW = plotW(), PH = plotH();
+  const axisY = PAD.top + PH;
+  // vertical gridlines
+  ctx.save(); ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+  for (let v = X_MIN; v <= X_MAX; v += 2) {
+    const xp = xToP(v);
+    ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, axisY); ctx.stroke();
+  }
+  ctx.restore();
+  // x-axis
+  ctx.save(); ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD.left, axisY); ctx.lineTo(PAD.left+PW, axisY); ctx.stroke();
+  ctx.restore();
+  // tick labels + axis title
+  ctx.save();
+  ctx.font = '11px sans-serif'; ctx.fillStyle = COL.tick;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let v = X_MIN; v <= X_MAX; v += 2) ctx.fillText(v.toString(), xToP(v), axisY + 4);
+  ctx.font = 'italic 12px Georgia, serif';
+  ctx.fillText('θ', PAD.left + PW/2, axisY + 18);
+  ctx.restore();
+  return axisY;
+}
+
+// ── Main draw ───────────────────────────────────────────────────────────────
+function draw() {
+  const W = cw(), H = ch();
+  const yMax = (1 / (se * Math.sqrt(2*Math.PI))) * 1.2;
+  ctx.clearRect(0, 0, W, H);
+  const axisY = axes(yMax);
+
+  if (stage === 1) {
+    // Sampling distribution centred at theta (= θ_true)
+    curve(theta, yMax, true);
+    // sample dots scattered along the axis
+    ctx.save();
+    samples.forEach((smp, idx) => {
+      const x = theta + se * smp.z;
+      if (x < X_MIN || x > X_MAX) return;
+      const px = xToP(x);
+      const py = axisY - 10 - smp.jit * (plotH() * 0.45);
+      ctx.beginPath();
+      ctx.arc(px, py, idx === 0 ? 5 : 3.2, 0, 2*Math.PI);
+      if (idx === 0) {
+        ctx.fillStyle = COL.blue; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = COL.pillBg; ctx.stroke();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = COL.blue; ctx.stroke();
+      } else {
+        ctx.fillStyle = COL.dot; ctx.fill();
+      }
+    });
+    ctx.restore();
+    // observed θ̂ marker (first dot) + true θ centre line
+    vline(theta, [4,3], COL.muted, 'θ true = ' + fmt(theta), 1);
+    const obs = theta + se * samples[0].z;
+    vline(obs, [], COL.blue, 'θ̂ = ' + obs.toFixed(2), 0);
+
+  } else if (stage === 2) {
+    // Null-centred curve
+    curve(0, yMax, true);
+    // rejection region (optional) drawn first so p-tail sits on top
+    if (showRej) {
+      if (mode === 'two') {
+        tail(X_MIN, -Z95*se, 0, yMax, COL.purpleFill, null);
+        tail(Z95*se, X_MAX, 0, yMax, COL.purpleFill, null);
+        vline(-Z95*se, [2,3], COL.purple, 'crit ' + (-Z95*se).toFixed(2), 1);
+        vline( Z95*se, [2,3], COL.purple, 'crit +' + (Z95*se).toFixed(2), 1);
+      } else if (mode === 'lt') {
+        tail(Z90*se, X_MAX, 0, yMax, COL.purpleFill, null);
+        vline(Z90*se, [2,3], COL.purple, 'crit ' + (Z90*se).toFixed(2), 1);
+      } else {
+        tail(X_MIN, -Z90*se, 0, yMax, COL.purpleFill, null);
+        vline(-Z90*se, [2,3], COL.purple, 'crit ' + (-Z90*se).toFixed(2), 1);
+      }
+    }
+    // p-value tail(s): mirror of the estimate-centred regions through θ̂/2
+    const d = Math.abs(theta);
+    if (mode === 'lt')      tail(theta, X_MAX, 0, yMax, COL.redFill, COL.red, true);
+    else if (mode === 'gt') tail(X_MIN, theta, 0, yMax, COL.redFill, COL.red, true);
+    else { tail(X_MIN, -d, 0, yMax, COL.redFill, COL.red, true); tail(d, X_MAX, 0, yMax, COL.redFill, COL.red, true); }
+    // markers
+    vline(0, [3,3], COL.muted, 'θ₀ = 0', 2);
+    if (mode === 'two') {
+      vline(-d, [3,3], COL.red, 'θ̂ = ' + fmt(-d), 0);
+      vline( d, [3,3], COL.red, 'θ̂ = +' + fmt(d), 0);
+    } else {
+      vline(theta, [], COL.red, 'θ̂ = ' + fmt(theta), 0);
+    }
+
+  } else {
+    // Estimate-centred curve (Fisher / likelihood)
+    curve(theta, yMax, true);
+    const d = Math.abs(theta);
+    if (mode === 'lt')      tail(X_MIN, 0, theta, yMax, COL.redFill, COL.red, true);
+    else if (mode === 'gt') tail(0, X_MAX, theta, yMax, COL.redFill, COL.red, true);
+    else { tail(X_MIN, theta-d, theta, yMax, COL.redFill, COL.red, true); tail(theta+d, X_MAX, theta, yMax, COL.redFill, COL.red, true); }
+    if (showCI) {
+      vline(theta-Z95*se, [4,3], COL.purple, 'CI ' + (theta-Z95*se).toFixed(2), 1);
+      vline(theta+Z95*se, [4,3], COL.purple, 'CI ' + (theta+Z95*se).toFixed(2), 1);
+    }
+    if (mode === 'two') {
+      vline(theta-d, [3,3], COL.red, 'θ = ' + fmt(theta-d), 0);
+      vline(theta+d, [3,3], COL.red, 'θ = ' + fmt(theta+d), 0);
+    } else {
+      vline(0, [3,3], COL.red, 'θ = 0', 0);
+    }
+    vline(theta, [], COL.blue, 'θ̂ = ' + fmt(theta), 2);
+  }
+}
+
+// ── p-value (shared by stages 2 & 3 — the whole point) ──────────────────────
+function computeP() {
+  if (mode === 'lt') return normalCDF(0, theta, se);
+  if (mode === 'gt') return 1 - normalCDF(0, theta, se);
+  const d = Math.abs(theta);
+  return normalCDF(theta-d, theta, se) + (1-normalCDF(theta+d, theta, se));
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function setStat(i, label, value) {
+  document.getElementById('stat-label-'+i).textContent = label;
+  document.getElementById('stat-val-'+i).textContent = value;
+}
+
+function update() {
+  draw();
+  const p = computeP();
+  if (stage === 1) {
+    document.getElementById('stat-3').style.display = 'none';
+    setStat(1, 'true θ (unknown!)', fmt(theta));
+    setStat(2, 'std error', fmt(se));
+  } else if (stage === 2) {
+    document.getElementById('stat-3').style.display = 'none';
+    setStat(1, 'p-value', p.toFixed(3));
+    setStat(2, 'decision (α = .05)', p < 0.05 ? 'reject H₀' : 'don’t reject');
+  } else {
+    setStat(1, 'p-value', p.toFixed(3));
+    setStat(2, '% crossing threshold', (p*100).toFixed(1)+'%');
+    if (showCI) {
+      document.getElementById('stat-3').style.display = '';
+      setStat(3, '95% CI', '['+(theta-Z95*se).toFixed(2)+', '+(theta+Z95*se).toFixed(2)+']');
+    } else {
+      document.getElementById('stat-3').style.display = 'none';
+    }
+  }
+}
+
+// ── Legend (per stage) ─────────────────────────────────────────────────────
+function buildLegend() {
+  const L = document.getElementById('legend');
+  let html = '';
+  if (stage === 1) {
+    html = `<span><span class="dot" style="background:#378ADD;"></span>Sampling distribution (centre = θ true)</span>
+            <span><span class="dot" style="background:${COL.dot};"></span>Hypothetical samples’ θ̂</span>`;
+  } else if (stage === 2) {
+    html = `<span><span class="dot" style="background:#378ADD;"></span>Distribution under H₀</span>
+            <span><span class="dot" style="background:#E24B4A;"></span>p-value area</span>`;
+    if (showRej) html += `<span><span class="dot" style="background:${COL.purple};"></span>rejection region</span>`;
+  } else {
+    html = `<span><span class="dot" style="background:#378ADD;"></span>Sampling-dist. approx. / likelihood</span>
+            <span><span class="dot" style="background:#E24B4A;"></span>p-value area</span>`;
+    if (showCI) html += `<span><span class="dot" style="background:${COL.purple};"></span>95% CI</span>`;
+  }
+  L.innerHTML = html;
+}
+
+// ── Stage switching ───────────────────────────────────────────────────────
+function refreshControls() {
+  // explainer + footer
+  const t = STAGE_TEXT[stage];
+  let exHtml = `<h3>${t.h}</h3><div>${t.body}</div><span class="key">${t.key}</span>`;
+  if (t.note) exHtml += `<span class="footnote">${t.note}</span>`;
+  document.getElementById('explainer').innerHTML = exHtml;
+  document.getElementById('footer').innerHTML = t.footer;
+
+  // theta label
+  document.getElementById('theta-label').textContent = stage === 1 ? 'θ true' : 'θ̂ observed';
+
+  // test-type row visible only in stages 2 & 3
+  const showTest = stage !== 1;
+  document.getElementById('testtype-label').style.display = showTest ? '' : 'none';
+  document.getElementById('testtype-row').style.display   = showTest ? 'flex' : 'none';
+
+  // extra-row buttons: draw (1) / rejection (2) / CI (3)
+  document.getElementById('btn-draw').style.display = stage === 1 ? '' : 'none';
+  document.getElementById('btn-rej').style.display  = stage === 2 ? '' : 'none';
+  document.getElementById('btn-ci').style.display   = stage === 3 ? '' : 'none';
+
+  buildLegend();
+}
+
+function setStage(s) {
+  stage = s;
+  [1,2,3].forEach(i => document.getElementById('step-'+i).classList.toggle('active', i === s));
+  refreshControls();
+  update();
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  ['lt','gt','two'].forEach(id => document.getElementById('btn-'+id).classList.remove('active-red'));
+  document.getElementById('btn-'+m).classList.add('active-red');
+  buildLegend();
+  update();
+}
+
+function toggleCI() {
+  showCI = !showCI;
+  const btn = document.getElementById('btn-ci');
+  btn.classList.toggle('active-purple', showCI);
+  buildLegend();
+  update();
+}
+
+function toggleRej() {
+  showRej = !showRej;
+  const btn = document.getElementById('btn-rej');
+  btn.classList.toggle('active-purple', showRej);
+  buildLegend();
+  update();
+}
+
+function redraw() { genSamples(45); update(); }
+
+document.getElementById('theta').addEventListener('input', e => {
+  theta = parseFloat(e.target.value);
+  document.getElementById('theta-out').textContent = fmt(theta);
+  update();
+});
+document.getElementById('se').addEventListener('input', e => {
+  se = parseFloat(e.target.value);
+  document.getElementById('se-out').textContent = fmt(se);
+  update();
+});
+
+window.addEventListener('resize', resize);
+
+// init
+setMode('two');
+refreshControls();
+resize();
+</script>
+</body>
+</html>

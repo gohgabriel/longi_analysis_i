@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHAPTER TITLE — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Add any widget-specific libraries here, e.g. Chart.js -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
+</head>
+<body>
+
+  <!-- nav.js injects the top bar automatically. data-page must match toc.json "id" -->
+  <script src="nav.js" data-page="CHAPTER-ID"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>CHAPTER TITLE</h1>
+      <p class="subtitle">CHAPTER SUBTITLE OR SHORT DESCRIPTION</p>
+
+      <!-- ── Learning objectives ── -->
+      <div class="objectives">
+        <div class="obj-label">Learning objectives</div>
+        <ul>
+          <li>First objective</li>
+          <li>Second objective</li>
+        </ul>
+      </div>
+
+      <!-- ── Introductory prose ── -->
+      <div class="prose">
+        <p>
+          Introductory paragraph explaining what this visualizer demonstrates.
+        </p>
+      </div>
+
+      <!-- ════════════════════════════════════════
+           WIDGET SECTION — replace with your controls + canvas
+           ════════════════════════════════════════ -->
+
+      <p class="section-label">Controls</p>
+
+      <div class="controls">
+        <!-- Example slider control -->
+        <div class="ctrl">
+          <label>Parameter α</label>
+          <input type="range" id="alpha" min="0" max="10" step="0.1" value="5">
+          <span class="val" id="alpha-val">5.0</span>
+        </div>
+      </div>
+
+      <!-- Example toggle buttons -->
+      <div class="toggle-row">
+        <button class="tog active-blue" id="tog-a">Option A</button>
+        <button class="tog"             id="tog-b">Option B</button>
+      </div>
+
+      <!-- Example stat chips -->
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Statistic 1</div>
+          <div class="stat-value" id="stat1">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Statistic 2</div>
+          <div class="stat-value" id="stat2">—</div>
+        </div>
+      </div>
+
+      <!-- Chart legend -->
+      <div class="legend">
+        <span><span class="dot" style="background:#378ADD"></span>Series A</span>
+        <span><span class="dot" style="background:#1D9E75"></span>Series B</span>
+      </div>
+
+      <!-- Canvas for chart -->
+      <div class="chart-wrap">
+        <canvas id="main-chart"></canvas>
+      </div>
+
+      <!-- ════════════════════════════════════════
+           END WIDGET SECTION
+           ════════════════════════════════════════ -->
+
+      <!-- ── Explanation / prose below chart ── -->
+      <div class="prose" style="margin-top:1.5rem">
+        <p>
+          Explanation of what the visualizer shows goes here.
+        </p>
+      </div>
+
+      <!-- ── Case study links (optional) ── -->
+      <!--
+      <div class="case-studies">
+        <div class="cs-label">Case studies</div>
+        <a href="case_study/multilevel_1.html">↗ Case Study 1: Comparing OLS and GLS</a>
+      </div>
+      -->
+
+      <!-- ── Footer ── -->
+      <div class="footer">
+        Optional footnote or attribution text here.
+      </div>
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+  <script>
+    /* ── Widget JS goes here ── */
+
+    const alphaSlider = document.getElementById('alpha');
+    const alphaVal    = document.getElementById('alpha-val');
+
+    alphaSlider.addEventListener('input', () => {
+      alphaVal.textContent = parseFloat(alphaSlider.value).toFixed(1);
+      update();
+    });
+
+    function update() {
+      const alpha = parseFloat(alphaSlider.value);
+      // Update stats
+      document.getElementById('stat1').textContent = alpha.toFixed(2);
+      document.getElementById('stat2').textContent = (alpha * 2).toFixed(2);
+      // Update chart
+      drawChart(alpha);
+    }
+
+    function drawChart(alpha) {
+      // Replace with your Chart.js or canvas drawing logic
+    }
+
+    update();
+  </script>
+
+</body>
+</html>

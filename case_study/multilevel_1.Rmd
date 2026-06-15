@@ -1,0 +1,385 @@
+---
+title: "Case Study 1: Comparing OLS and GLS for Longitudinal Data"
+author: "Goh Gabriel"
+date: "2025-06-04"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+
+# Load all required packages at the start
+library(dplyr)
+library(tidyr)
+library(nlme)
+library(afex)
+library(emmeans)
+library(ggplot2)
+library(kableExtra)
+library(broom)
+library(broom.mixed)
+library(corrplot)  # For correlation matrix visualization
+```
+
+# Introduction
+
+Welcome to Case Study 1! In this case study, we will look at two approaches to analysing longitudinal data - OLS and GLS.
+
+## Research Context
+
+Children today spend way too much time on phones and tablets. Parents and researchers are starting to worry about what all that screen time might be doing to them.
+
+However, understanding patterns of device usage requires longitudinal tracking, as screen time habits can fluctuate seasonally—potentially increasing during school breaks and decreasing during busy academic periods.
+
+This case study examines screen time patterns in a cohort of children tracked across three key time points: January (start of school year), June (start of summer break), and December (start of winter break). The research question is straightforward: **Do children's monthly screen time hours differ significantly across these time periods?**
+
+## Statistical Challenge
+
+When analyzing longitudinal data like our screen time measurements, we face a fundamental statistical problem: violated independence assumptions.
+
+In traditional OLS regression, we assume that each observation is independent of all others. However, in longitudinal studies, measurements from the same participant are typically correlated—a child with high screen time in January is likely to have relatively high screen time in June and December as well. This creates within-subject correlation that standard regression methods ignore.
+
+## Key Learning Objectives:
+
+- Understand why OLS assumptions fail with longitudinal data
+- Learn how GLS accounts for within-subject correlation  
+- See the practical impact on statistical power and Type II error rates
+- Know when to use each approach in your own research
+
+# Data Overview
+
+## Loading and Exploring the Dataset
+
+```{r generating-data}
+data1 <- read.csv("data1.csv")
+
+# Display basic structure
+str(data1)
+head(data1, 10)
+```
+
+**Dataset Description:**
+Our dataset contains screen time measurements from a cohort study with three variables:
+
+* **`id`**: Child participant identifier (factor)
+* **`timepoint`**: Measurement occasion (1 = January, 2 = June, 3 = December)  
+* **`screentime`**: Monthly device usage in hours, aggregated from parental reports and device monitoring
+
+This is a **balanced longitudinal design** with `r nrow(data1)` observations from `r length(unique(data1$id))` children across `r length(unique(data1$timepoint))` timepoints, where each participant contributes measurements at all timepoints, creating a within-subjects structure that violates OLS independence assumptions.
+
+```{r data-structure-check}
+# Convert timepoint to factor and check data structure
+data1$timepoint <- as.factor(data1$timepoint)
+data1$id <- as.factor(data1$id)
+
+# Check for balanced design
+n_obs_per_subject <- data1 %>%
+  count(id) %>%
+  count(n, name = "n_subjects")
+
+print(n_obs_per_subject)
+```
+
+This balanced design includes `r length(unique(data1$id))` participants, each contributing `r unique(data1 %>% count(id) %>% pull(n))` measurements per person.
+
+
+## Descriptive Statistics
+
+```{r data-exploration}
+# Basic descriptive statistics by timepoint
+descriptives <- data1 %>%
+  group_by(timepoint) %>%
+  summarise(
+    n = n(),
+    mean_screentime = mean(screentime, na.rm = TRUE),
+    sd_screentime = sd(screentime, na.rm = TRUE),
+    median_screentime = median(screentime, na.rm = TRUE),
+    min_screentime = min(screentime, na.rm = TRUE),
+    max_screentime = max(screentime, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+descriptives %>%
+  knitr::kable(
+    digits = 2, 
+    col.names = c("Timepoint", "N", "Mean", "SD", "Median", "Min", "Max"),
+    caption = "Descriptive Statistics by Timepoint"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Visualizing Individual Trajectories
+
+```{r plot-trajectories}
+# Enhanced visualization of raw data
+raw_data_plot <- data1 %>%
+  ggplot(aes(x = timepoint, y = screentime, group = id)) +
+  geom_line(alpha = 0.4, color = "gray60", size = 0.5) +  # Individual trajectories
+  geom_point(alpha = 0.6, size = 1.5, color = "gray40") + # Individual points
+  stat_summary(aes(group = 1), fun = mean, geom = "line", 
+               color = "#E31A1C", size = 1.5) +              # Mean trajectory  
+  stat_summary(aes(group = 1), fun = mean, geom = "point", 
+               color = "#E31A1C", size = 4) +               # Mean points
+  stat_summary(aes(group = 1), fun.data = mean_se, geom = "errorbar", 
+               color = "#E31A1C", width = 0.1, size = 1) +  # Standard error bars
+  scale_x_discrete(labels = c("1" = "January", "2" = "June", "3" = "December")) +
+  labs(
+    title = "Children's Screen Time Trajectories Across the Year",
+    subtitle = "Gray lines show individual children; red line shows group mean ± SE",
+    x = "Measurement Timepoint",
+    y = "Screen Time (hours per month)",
+    caption = "Note: Connected lines indicate repeated measures from same children"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "gray50"),
+    plot.caption = element_text(size = 10, color = "gray60"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 11)
+  )
+
+print(raw_data_plot)
+```
+
+# OLS: The Naive Approach
+
+Before we get to the proper solution, let's see what goes wrong with the standard approach.
+
+## The OLS Model
+
+We can use OLS to analyze this longitudinal data by treating timepoint as a categorical predictor, essentially asking: "Do children's average screen time hours differ across January, June, and December?"
+
+However, this approach ignores the correlation structure of the data by imposing the i.i.d. assumption. This means that OLS treats each of the 150 observations as if they came from 150 different children rather than 50 children measured 3 times each.
+
+```{r naive-OLS-model}
+# OLS treats each observation as independent
+OLS_model <- lm(screentime ~ timepoint, data = data1)
+
+summary(OLS_model)
+```
+
+## Interpreting OLS Coefficients
+
+The OLS regression coefficients can be interpreted as follows:
+
+- **Intercept (`r round(coef(OLS_model)[1], 3)`)**: The estimated mean screentime at timepoint 1 (January) = `r round(coef(OLS_model)[1], 3)` hours per month
+- **timepoint2 (`r round(coef(OLS_model)[2], 3)`)**: The difference in mean screentime between June and January = +`r round(coef(OLS_model)[2], 3)` hours per month  
+- **timepoint3 (`r round(coef(OLS_model)[3], 3)`)**: The difference in mean screentime between December and January = `r round(coef(OLS_model)[3], 3)` hours per month
+
+So the estimated means are:
+
+- January: `r round(coef(OLS_model)[1], 3)` hours
+- June: `r round(coef(OLS_model)[1] + coef(OLS_model)[2], 3)` hours  
+- December: `r round(coef(OLS_model)[1] + coef(OLS_model)[3], 3)` hours
+
+The June increase represents a `r round((coef(OLS_model)[2]/coef(OLS_model)[1])*100, 1)`% increase from baseline, while December shows a `r round(abs(coef(OLS_model)[3]/coef(OLS_model)[1])*100, 1)`% decrease.
+
+## The Problem with OLS Standard Errors
+
+```{r ols-residuals-analysis}
+# Extract residuals and examine correlation structure
+ols_residuals <- data1 %>%
+  mutate(
+    fitted = fitted(OLS_model),
+    residuals = residuals(OLS_model)
+  )
+
+# Check residual correlation within subjects
+residual_wide <- ols_residuals %>%
+  select(id, timepoint, residuals) %>%
+  pivot_wider(names_from = timepoint, values_from = residuals, 
+              names_prefix = "timepoint_")
+
+# Calculate correlation matrix of residuals
+residual_cors <- cor(residual_wide[, -1], use = "complete.obs")
+print("Residual correlations between timepoints:")
+round(residual_cors, 3)
+```
+
+The OLS model assumes these residual correlations should be zero, but in longitudinal data, they typically aren't. This leads to **wrong standard errors** and **inflated Type I or Type II error rates**.
+
+---
+
+# GLS: Accounting for Correlation Structure
+
+## Why GLS?
+
+Generalized Least Squares (GLS) allows us to explicitly model the correlation structure of our data, rather than making restrictive assumptions about it.
+
+In our three-timepoint dataset, we have three potential within-child correlations to consider:
+
+1. **ρ₁₂**: January-June correlation  
+2. **ρ₁₃**: January-December correlation
+3. **ρ₂₃**: June-December correlation
+
+## Choosing a Correlation Structure
+
+GLS offers several options for modeling these correlations, each with different assumptions:
+
+1. **Unstructured** (`corSymm()`): Estimates all three correlations separately, allowing maximum flexibility
+2. **Compound Symmetry** (`corCompSymm()`): Estimates just one parameter (ρ), assumes all three correlations are equal (ρ₁₂ = ρ₁₃ = ρ₂₃)
+3. (There are more! For the purposes of this case study, we'll just talk about these two.)
+
+For this analysis, we'll use the **unstructured** approach to let the data tell us what the actual correlation pattern looks like, without imposing restrictions.
+
+## The GLS Model
+
+```{r GLS-model}
+# Unstructured approach
+GLS_model <- gls(screentime ~ timepoint, 
+                 data = data1, 
+                 correlation = corSymm(form = ~ 1 | id)
+                 # , weights = varIdent(form = ~ 1 | timepoint)
+                 # We can also allow a different weighting scheme, but we won't talk about it here today
+                 ) 
+
+summary(GLS_model)
+```
+
+## Key Insights: Same Estimates, Different Inference
+
+**Parameter Estimates** (identical between OLS and GLS):
+
+- Intercept: `r round(coef(GLS_model)[1], 3)`
+- timepoint2: `r round(coef(GLS_model)[2], 3)`  
+- timepoint3: `r round(coef(GLS_model)[3], 3)`
+
+Both OLS and GLS produce **unbiased coefficient estimates** under the assumption that the mean structure (aka your design matrix) is correctly specified.
+
+```{r model-comparison}
+# Extract key statistics for comparison
+ols_summary <- broom::tidy(OLS_model)
+gls_summary <- broom::tidy(GLS_model)
+
+comparison <- data.frame(
+  Term = ols_summary$term,
+  OLS_Estimate = ols_summary$estimate,
+  OLS_SE = ols_summary$std.error,
+  OLS_pvalue = ols_summary$p.value,
+  GLS_Estimate = gls_summary$estimate,
+  GLS_SE = gls_summary$std.error,
+  GLS_pvalue = gls_summary$p.value
+) %>%
+  mutate(
+    SE_Ratio = GLS_SE / OLS_SE,
+    Power_Impact = ifelse(GLS_pvalue < 0.05 & OLS_pvalue >= 0.05, 
+                         "GLS detects effect", 
+                         ifelse(GLS_pvalue >= 0.05 & OLS_pvalue < 0.05,
+                               "OLS detects effect", "Same conclusion"))
+  )
+
+comparison %>%
+  knitr::kable(digits = 4, 
+               col.names = c("Term", "OLS Est.", "OLS SE", "OLS p", 
+                           "GLS Est.", "GLS SE", "GLS p", "SE Ratio", "Impact"))
+```
+
+- **OLS p-values**: `r round(broom::tidy(OLS_model)$p.value[2], 3)` & `r round(broom::tidy(OLS_model)$p.value[3], 3)` (not significant at α = 0.05)
+- **GLS p-values**: `r round(broom::tidy(GLS_model)$p.value[2], 4)` & `r round(broom::tidy(GLS_model)$p.value[3], 4)` (highly significant!)
+
+The real difference between OLS and GLS shows up in:
+
+- Standard errors (GLS often has smaller, more accurate standard errors)
+- Confidence intervals (more precise with GLS when correlation structure matters)
+- Hypothesis tests (more powerful/accurate with GLS when correlation structure is specified correctly)
+
+This demonstrates that **OLS commits Type II errors** (false negatives) by failing to detect real effects. The OLS standard errors are **inflated** because they don't account for the within-subject correlation, leading to **reduced statistical power**.
+
+Sometimes, we are taught that if we ignore the error structure and just use OLS, we typically only commit type-I error (i.e. falsely rejecting the null hypothesis). As you can see here, this isn't always the case!
+
+## Examining the Correlation Structure
+
+```{r correlation-structure}
+# Extract the estimated correlation matrix
+cor_matrix <- getVarCov(GLS_model, type = "marginal")
+cor_struct <- cov2cor(as.matrix(cor_matrix)[1:3, 1:3])
+
+print("Estimated correlation structure:")
+dimnames(cor_struct) <- list(c("Jan", "Jun", "Dec"), c("Jan", "Jun", "Dec"))
+round(cor_struct, 3)
+
+# Visualize the correlation structure
+library(corrplot)
+corrplot(cor_struct, method = "color", type = "upper", 
+         title = "Within-Subject Correlation Structure",
+         mar = c(0,0,2,0))
+```
+
+The estimated within-subject correlations range from `r round(min(cor_struct[upper.tri(cor_struct)]), 3)` to `r round(max(cor_struct[upper.tri(cor_struct)]), 3)`, indicating substantial dependency between measurements from the same participant.
+
+## Model Fit Comparison
+
+```{r model-fit}
+# Compare model fit
+ols_aic <- AIC(OLS_model)
+gls_aic <- AIC(GLS_model)
+
+fit_comparison <- data.frame(
+  Model = c("OLS", "GLS"),
+  AIC = c(ols_aic, gls_aic),
+  LogLik = c(logLik(OLS_model), logLik(GLS_model)),
+  Parameters = c(4, 7)  # OLS: 3 means + 1 error; GLS: 3 means + 3 correlations + 1 error
+)
+
+print("Model Fit Comparison:")
+fit_comparison %>%
+  knitr::kable(digits = 2)
+```
+
+The GLS model provides a better fit to the data, with an AIC that is `r round(ols_aic - gls_aic, 2)` points lower than the OLS model.
+
+## When to Use Each Method
+
+**Use OLS when:**
+
+- Observations are truly independent (or at least, independent **enough**)
+- You have cross-sectional data
+- Computational simplicity is paramount
+
+**Use GLS when:**
+
+- You have longitudinal data, and you want to specify the exact type of correlation
+- When you don't have missing data (Why?)
+
+**Bottom Line**: GLS provides the same parameter estimates as OLS but with **correct standard errors** and **proper statistical inference**.
+
+# Next: Why not ANOVA?
+
+The more astute learner may realise that the data here could be easily analyzed with a within-subjects ANOVA as well. Why not use that instead?
+
+The answer is yes, ANOVA may also be suitable for this dataset. 
+
+```{r within-subjects-anova}
+anova_afex <- aov_ez(id = "id", dv = "screentime", within = "timepoint", data = data1)
+anova_afex
+
+# Compare means with post-hoc tests
+emmeans_anova <- emmeans(anova_afex, ~ timepoint)
+pairs(emmeans_anova, adjust = "bonferroni")
+```
+
+Note, again, when using a within-subjects ANOVA, the intercept (or mean) differences are identical to using OLS or GLS. Yet, the p-values suggest that the within-subjects ANOVA (and its paired-sample t-tests for simple mean differences) actually has less power than when we used GLS.
+
+With GLS:
+
+- You can test which correlation structure fits best (compound symmetry vs AR(1) vs unstructured)
+- You get the same parameter estimates, but with more efficient SEs
+- You **may** have more statistical power to detect timepoint effects (as can be seen by the p-value differences)
+
+The choice between GLS and RM-ANOVA often comes down to flexibility vs. simplicity. For this clean dataset, both would give similar conclusions, but GLS provides a framework that scales better to more complex designs and typically has more power.
+
+We will cover ANOVA and simple multilevel modelling in the next case study.

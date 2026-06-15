@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch00_index"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>Longitudinal Data Analysis</h1>
+      <p class="subtitle">Course notes — Gabriel Goh</p>
+
+      <div class="prose">
+        <p>
+          These notes cover the analysis of repeated-measures and panel data,
+          from classical OLS/GLS approaches through to multilevel and Bayesian models.
+          Each chapter combines theory with interactive visualizations and worked case studies in R.
+        </p>
+      </div>
+
+      <p class="section-label" style="margin-top:1.5rem">Chapters</p>
+
+      <!-- Chapter list is rendered here by index.js -->
+      <ul id="chapter-list" style="list-style:none; padding:0; margin:0;"></ul>
+
+    </div>
+  </div>
+
+  <script>
+    // Load toc.json and render the chapter list
+    fetch('toc.json')
+      .then(r => r.json())
+      .then(toc => {
+        const ul = document.getElementById('chapter-list');
+        toc.chapters
+          .filter(c => c.type !== 'index')
+          .forEach(ch => {
+            const li = document.createElement('li');
+            li.style.cssText = 'border-top: 1px solid var(--border); padding: 0.85rem 0;';
+
+            const a = document.createElement('a');
+            a.href = ch.file;
+            a.style.cssText = 'text-decoration:none; display:flex; flex-direction:column; gap:3px;';
+
+            const title = document.createElement('span');
+            title.style.cssText = 'font-family:Georgia,serif; font-size:0.95rem; color:var(--text);';
+            title.textContent = ch.title;
+
+            const desc = document.createElement('span');
+            desc.style.cssText = 'font-family:sans-serif; font-size:0.78rem; color:var(--text-muted);';
+            desc.textContent = ch.description || '';
+
+            a.appendChild(title);
+            if (ch.description) a.appendChild(desc);
+            li.appendChild(a);
+            ul.appendChild(li);
+          });
+      });
+  </script>
+
+</body>
+</html>

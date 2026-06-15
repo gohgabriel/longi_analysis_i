@@ -1,0 +1,1004 @@
+---
+title: "Case Study 3: Robust Variance Estimation for Longitudinal Data"
+author: "Goh Gabriel"
+date: "2025-06-05"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+
+# Load all required packages
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(kableExtra)
+library(lme4)
+library(clubSandwich)  # For cluster-robust variance estimation
+library(sandwich)      # For Huber-White robust standard errors
+library(broom)
+library(broom.mixed)
+library(lmtest)
+library(corrplot)
+library(performance)
+```
+
+# Introduction
+
+Case studies 1 and 2 covered OLS versus GLS approaches and ANOVA / Multilevel modelling. In case study 3, we explore **robust variance estimation** as well as a brief return to GLS methods.
+
+## Research Context
+
+Working memory training programs promise to boost children's cognitive abilities, but research results are mixed. Some studies show big improvements while others find no benefits at all.
+
+It turns out that understanding intervention effects requires careful longitudinal analysis because these studies create complex data patterns. We have the typical dependency issues to contend with, but measurement variance often increases with age, participants may drop out over time, and intervention effects can vary by timing and individual characteristics. Further, in reality, within-subjects correlations often weaken over longer time gaps.
+
+This case study examines data from a randomized controlled trial testing a working memory training program in school-age children tracked over 18 months. The research question is: **Does cognitive training produce sustained improvements in working memory performance compared to a control group?**
+
+## Statistical Challenge
+
+Mixed-effects (or multilevel) models make specific assumptions about correlation structures. When these assumptions are violated, even such sophisticated models can produce misleading standard errors and inflated Type I error rates. 
+
+How do we ensure our statistical conclusions remain valid when we're uncertain about the true correlation structure of our longitudinal data? Robust variance estimators offer a methodological safety net. These "sandwich" estimators provide valid statistical inference even when correlation structures are misspecified.
+
+## Key Learning Objectives
+
+By the end of this analysis, you will:
+
+- Understand why sophisticated longitudinal models can fail when correlation assumptions are violated
+- Master robust variance estimators across different longitudinal scenarios
+- Recognize the impact of methodological choices on intervention research conclusions
+- Develop practical expertise in choosing between competing variance estimation approaches
+
+---
+
+# The Longitudinal Intervention Study
+
+## Dataset Structure and Variables
+
+```{r load-data}
+# Load the longitudinal dataset
+study_data <- read.csv("data3.csv")
+
+# Display basic structure
+str(study_data)
+```
+
+The dataset contains **`r nrow(study_data)` observations** from **`r length(unique(study_data$child_id))` children** assessed across different timepoints. Variable definitions:
+
+- **`child_id`**: Unique identifier for each participant
+- **`timepoint`**: Sequential visit number (1-6)
+- **`time_months`**: Elapsed time since baseline (0, 3, 6, 9, 12, 18)
+- **`time_centered`**: Time variable centered around intervention point
+- **`time_scaled`**: Simplified time scale (0-6) for modeling
+- **`age_baseline`**: Participant's age at study entry
+- **`age_at_visit`**: Participant's age at each assessment
+- **`iq`**: Intelligence quotient score at baseline
+- **`ses`**: Socioeconomic status composite score
+- **`intervention`**: Treatment group assignment (1 = intervention, 0 = control)
+- **`post_intervention`**: Whether assessment occurred after intervention delivery
+- **`working_memory_score`**: Primary cognitive outcome
+
+---
+
+# Examining the Data Pattern
+
+Unlike cases 1 and 2, there is missing data in case study 3. Mixed effects models handle this seamlessly, and robust variance estimation techniques can also handle this when built around naive OLS estimators.
+
+## Missingness and Retention Patterns
+
+```{r data-exploration}
+# Check missingness pattern
+missingness <- study_data %>%
+  group_by(child_id, intervention) %>%
+  summarise(
+    n_visits = n(),
+    last_visit = max(time_months),
+    .groups = "drop"
+  ) %>%
+  group_by(intervention, n_visits) %>%
+  summarise(n_children = n(), .groups = "drop")
+```
+
+### Missingness Pattern by Group
+
+```{r missingness-table, echo=FALSE}
+missingness %>%
+  pivot_wider(names_from = intervention, values_from = n_children, 
+              names_prefix = "Group_", values_fill = 0) %>%
+  kable(col.names = c("Visits Completed", "Control", "Intervention")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Most participants complete multiple visits, but there is considerable dropout.
+
+## Descriptive Statistics Over Time
+
+```{r descriptive-stats}
+# Descriptive statistics
+descriptives <- study_data %>%
+  group_by(time_months, intervention) %>%
+  summarise(
+    n = n(),
+    mean_wm = mean(working_memory_score, na.rm = TRUE),
+    sd_wm = sd(working_memory_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+### Working Memory Performance by Timepoint and Group
+
+```{r descriptives-table, echo=FALSE}
+descriptives %>%
+  kable(digits = 2, col.names = c("Time (months)", "Intervention", "N", "Mean WM", "SD WM")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+The SD of the dependent variable increases over time, starting from about 10.93 (control) / 11.72 (intervention) to 15.36 (control) / 14.20 (intervention).
+
+---
+
+# Visualizing the Longitudinal Structure
+
+## Individual Trajectories
+
+```{r trajectory-plot}
+# Plot individual trajectories showing within-subject correlation
+set.seed(42)
+sample_children <- sample(unique(study_data$child_id), 20)
+
+trajectory_plot <- study_data %>%
+  filter(child_id %in% sample_children) %>%
+  ggplot(aes(x = time_months, y = working_memory_score, group = child_id)) +
+  geom_line(aes(color = factor(intervention)), alpha = 0.6, size = 0.8) +
+  geom_point(aes(color = factor(intervention)), alpha = 0.7, size = 1.5) +
+  facet_wrap(~intervention, labeller = labeller(intervention = c("0" = "Control", "1" = "Intervention"))) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = c("0" = "#E31A1C", "1" = "#1F78B4")) +
+  labs(
+    title = "Individual Working Memory Trajectories Over Time",
+    subtitle = "Each line represents one child. Note strong within-subject correlation",
+    x = "Time (months since baseline)",
+    y = "Working Memory Score",
+    color = "Group",
+    caption = "Dashed line shows intervention start (after baseline)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "none"
+  )
+
+print(trajectory_plot)
+```
+
+The trajectories demonstrate strong within-subject correlation that violates independence assumptions of standard regression.
+
+## Mean Trajectories and Group Differences
+
+```{r mean-trajectories}
+# Mean trajectories with confidence bands
+mean_trajectory_plot <- study_data %>%
+  ggplot(aes(x = time_months, y = working_memory_score, color = factor(intervention), fill = factor(intervention))) +
+  geom_point(alpha = 0.3, size = 0.8, position = position_jitter(width = 0.5)) +
+  geom_smooth(method = "loess", size = 1.5, alpha = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = c("0" = "#E31A1C", "1" = "#1F78B4"), 
+                     labels = c("Control", "Intervention")) +
+  scale_fill_manual(values = c("0" = "#E31A1C", "1" = "#1F78B4"), 
+                    labels = c("Control", "Intervention")) +
+  labs(
+    title = "Mean Working Memory Trajectories by Group",
+    subtitle = "Smoothed trajectories show intervention effect over time",
+    x = "Time (months since baseline)",
+    y = "Working Memory Score",
+    color = "Group",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+print(mean_trajectory_plot)
+```
+
+## Residual Analysis: Evidence of Heteroskedasticity
+
+```{r residual-analysis}
+# Examine residuals from naive OLS
+naive_model <- lm(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses, 
+                  data = study_data)
+
+residual_data <- study_data %>%
+  mutate(
+    fitted = fitted(naive_model),
+    residuals = residuals(naive_model)
+  )
+
+residual_plot <- residual_data %>%
+  ggplot(aes(x = time_months, y = residuals)) +
+  geom_point(aes(color = factor(intervention)), alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  geom_smooth(method = "loess", se = TRUE, color = "black") +
+  facet_wrap(~intervention, labeller = labeller(intervention = c("0" = "Control", "1" = "Intervention"))) +
+  labs(
+    title = "Residuals Over Time Showing Heteroskedasticity",
+    subtitle = "Increasing spread suggests variance grows with time",
+    x = "Time (months)",
+    y = "Residuals",
+    color = "Group"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(residual_plot)
+```
+
+Residual plots show evidence of heteroscedasticity.
+
+# Understanding Correlation Structures
+
+## Within-Subject Correlations Across Time
+
+Mixed effects models assume compound symmetry (equal correlations between all pairs of measurements within individuals). Let's test this assumption.
+
+```{r correlation-structure}
+# Create wide format to examine correlations
+wide_data <- study_data %>%
+  dplyr::select(child_id, time_months, working_memory_score) %>%
+  pivot_wider(names_from = time_months, values_from = working_memory_score,
+              names_prefix = "month_") %>%
+  dplyr::select(-child_id)
+
+# Calculate correlation matrix
+cor_matrix <- cor(wide_data, use = "pairwise.complete.obs")
+```
+
+### Within-Subject Correlation Matrix Across Timepoints
+
+```{r correlation-table, echo=FALSE}
+round(cor_matrix, 3) %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r corrplot}
+# Visualize correlation structure
+corrplot(cor_matrix, method = "color", type = "upper", 
+         title = "Within-Subject Correlations Across Time",
+         mar = c(0,0,2,0), tl.col = "black")
+```
+
+Correlations are strongest between adjacent timepoints (r = **`r round(cor_matrix[1,2], 3)`** between baseline and 3 months) and weaker for distant timepoints (r = **`r round(cor_matrix[1,ncol(cor_matrix)], 3)`** between baseline and 18 months). The compound symmetry assumption does not hold.
+
+---
+
+# Seven Approaches to Variance Estimation
+
+We fit the same regression model using seven different approaches to variance estimation:
+
+```{r model-fitting}
+# Method 1: Naive OLS (WRONG - treats all observations as independent)
+naive_ols <- lm(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses, 
+                data = study_data)
+summary(naive_ols)
+
+# Method 2: Huber-White robust standard errors (addresses heteroskedasticity only)
+huber_white_se <- vcovHC(naive_ols, type = "HC1")
+
+# Method 3: Cluster-robust standard errors by child (CR1)
+cluster_robust_cr1 <- vcovCR(naive_ols, cluster = study_data$child_id, type = "CR1")
+
+# Method 4: Cluster-robust standard errors by child (CR2) - generally preferred
+cluster_robust_cr2 <- vcovCR(naive_ols, cluster = study_data$child_id, type = "CR2")
+
+# Method 5: Mixed-effects model with random intercept only
+mixed_intercept <- lmer(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses + 
+                       (1 | child_id), data = study_data)
+
+# Method 6: Mixed-effects model with random intercept and slope
+mixed_full <- lmer(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses + 
+                  (1 + time_scaled | child_id), data = study_data)
+
+# Method 7: Mixed model with cluster-robust CR2 standard errors
+mixed_with_cr2 <- lmer(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses + 
+                      (1 | child_id), data = study_data)
+mixed_cr2_vcov <- vcovCR(mixed_with_cr2, cluster = study_data$child_id, type = "CR2")
+```
+
+## Extracting and Comparing Results
+
+```{r extract-results}
+# Function to extract results consistently
+extract_coef_info <- function(model, vcov_matrix = NULL, method_name) {
+  if (!is.null(vcov_matrix)) {
+    # For robust variance methods
+    if (inherits(model, "lmerMod")) {
+      # Special handling for mixed models with cluster-robust SE
+      coefs <- fixef(model)
+      se_robust <- sqrt(diag(vcov_matrix))
+      t_values <- coefs / se_robust
+      
+      data.frame(
+        Method = method_name,
+        Term = names(coefs),
+        Estimate = coefs,
+        SE = se_robust,
+        t_value = t_values,
+        p_value = NA,  # p-values would require degrees of freedom calculation
+        CI_lower = coefs - 1.96 * se_robust,
+        CI_upper = coefs + 1.96 * se_robust,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      # For regular lm objects with robust SE
+      coef_test_result <- lmtest::coeftest(model, vcov = vcov_matrix)
+      
+      data.frame(
+        Method = method_name,
+        Term = rownames(coef_test_result),
+        Estimate = coef_test_result[, "Estimate"],
+        SE = coef_test_result[, "Std. Error"],
+        t_value = coef_test_result[, "t value"],
+        p_value = coef_test_result[, "Pr(>|t|)"],
+        CI_lower = coef_test_result[, "Estimate"] - 1.96 * coef_test_result[, "Std. Error"],
+        CI_upper = coef_test_result[, "Estimate"] + 1.96 * coef_test_result[, "Std. Error"],
+        stringsAsFactors = FALSE
+      )
+    }
+  } else {
+    # For mixed effects models
+    if (inherits(model, "lmerMod")) {
+      summary_obj <- summary(model)
+      coef_matrix <- summary_obj$coefficients
+      
+      data.frame(
+        Method = method_name,
+        Term = rownames(coef_matrix),
+        Estimate = coef_matrix[, "Estimate"],
+        SE = coef_matrix[, "Std. Error"],
+        t_value = coef_matrix[, "t value"],
+        p_value = NA,  # p-values not provided by default in lmer
+        CI_lower = coef_matrix[, "Estimate"] - 1.96 * coef_matrix[, "Std. Error"],
+        CI_upper = coef_matrix[, "Estimate"] + 1.96 * coef_matrix[, "Std. Error"],
+        stringsAsFactors = FALSE
+      )
+    } else {
+      # For regular lm objects
+      summary_obj <- summary(model)
+      coef_matrix <- summary_obj$coefficients
+      
+      data.frame(
+        Method = method_name,
+        Term = rownames(coef_matrix),
+        Estimate = coef_matrix[, "Estimate"],
+        SE = coef_matrix[, "Std. Error"],
+        t_value = coef_matrix[, "t value"],
+        p_value = coef_matrix[, "Pr(>|t|)"],
+        CI_lower = coef_matrix[, "Estimate"] - 1.96 * coef_matrix[, "Std. Error"],
+        CI_upper = coef_matrix[, "Estimate"] + 1.96 * coef_matrix[, "Std. Error"],
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+}
+
+# Extract results from all methods
+all_results <- rbind(
+  extract_coef_info(naive_ols, method_name = "Naive OLS"),
+  extract_coef_info(naive_ols, huber_white_se, "Huber-White"),
+  extract_coef_info(naive_ols, cluster_robust_cr1, "Cluster-Robust CR1"),
+  extract_coef_info(naive_ols, cluster_robust_cr2, "Cluster-Robust CR2"),
+  extract_coef_info(mixed_intercept, method_name = "Mixed (Random Intercept)"),
+  extract_coef_info(mixed_full, method_name = "Mixed (Random Int+Slope)"),
+  extract_coef_info(mixed_with_cr2, mixed_cr2_vcov, "Mixed + CR2")
+)
+
+# Display comparison table for intervention × time interaction effect (the key effect of interest)
+intervention_comparison <- all_results %>%
+  filter(Term == "intervention:time_scaled") %>%
+  dplyr::select(Method, Estimate, SE, CI_lower, CI_upper)
+```
+
+### Intervention × Time Interaction Effect Estimates Across Methods
+
+```{r intervention-table, echo=FALSE}
+intervention_comparison %>%
+  kable(digits = 3, col.names = c("Method", "Estimate", "SE", "CI Lower", "CI Upper")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+All methods detect a significant intervention by time effect, but standard errors vary dramatically. Naive OLS produces SE = **`r round(filter(intervention_comparison, Method == "Naive OLS")$SE, 3)`**, while cluster-robust methods yield SE ≈ **`r round(filter(intervention_comparison, Method == "Cluster-Robust CR2")$SE, 3)`** — a **`r round(filter(intervention_comparison, Method == "Cluster-Robust CR2")$SE / filter(intervention_comparison, Method == "Naive OLS")$SE, 1)`x increase** in uncertainty.
+
+The mixed model without robust SEs yields SE = **`r round(filter(intervention_comparison, Method == "Mixed (Random Intercept)")$SE, 3)`**, while with CR2 robust SEs produces **`r round(filter(intervention_comparison, Method == "Mixed + CR2")$SE, 3)`** — a **`r round(filter(intervention_comparison, Method == "Mixed + CR2")$SE / filter(intervention_comparison, Method == "Mixed (Random Intercept)")$SE, 2)`x `r if(filter(intervention_comparison, Method == "Mixed + CR2")$SE > filter(intervention_comparison, Method == "Mixed (Random Intercept)")$SE) "increase" else "decrease"`**.
+
+Key findings:
+
+1. Mixed effects without sandwich estimators severely underestimate SEs due to violated assumptions
+2. Sandwich estimators (Huber-White, CR1, CR2) adequately correct SEs
+3. Mixed effects + CR2 appears optimal
+
+---
+
+# The Impact of Method Choice
+
+## Visualizing Uncertainty Differences
+
+```{r uncertainty-visualization}
+# Focus on intervention × time interaction effect for visualization
+intervention_results <- all_results %>%
+  filter(Term == "intervention:time_scaled") %>%
+  mutate(Method = factor(Method, levels = c("Naive OLS", "Huber-White", "Cluster-Robust CR1", 
+                                           "Cluster-Robust CR2", "Mixed (Random Intercept)",
+                                           "Mixed (Random Int+Slope)", "Mixed + CR2")))
+
+# Create the uncertainty visualization
+uncertainty_plot <- intervention_results %>%
+  ggplot(aes(x = Method, y = Estimate, color = Method)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), width = 0.2, size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray", alpha = 0.7) +
+  labs(
+    title = "Intervention × Time Interaction Effect with 95% Confidence Intervals",
+    subtitle = "Notice the differences in uncertainty across methods",
+    x = "Estimation Method",
+    y = "Estimated Intervention × Time Interaction Effect",
+    caption = "This interaction captures the differential change over time between groups"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "none"
+  ) +
+  scale_color_brewer(type = "qual", palette = "Set1")
+
+print(uncertainty_plot)
+```
+
+## Understanding Design Effects
+
+The **design effect** quantifies how clustering inflates standard errors:
+
+$$\text{DEFF} = \frac{\text{Variance under complex design}}{\text{Variance under simple random sampling}}$$
+
+For clustered data: $\text{DEFF} = 1 + (m - 1) \times \rho$ where $m$ is average cluster size and $\rho$ is the ICC.
+
+```{r design-effects}
+# Calculate ICC from mixed model
+icc_results <- performance::icc(mixed_intercept)
+
+# Calculate average cluster size (observations per child)
+cluster_sizes <- study_data %>%
+  group_by(child_id) %>%
+  summarise(n = n(), .groups = "drop")
+
+avg_cluster_size <- mean(cluster_sizes$n)
+rho_within <- icc_results$ICC_conditional  # Within-subject correlation
+
+# Design effect
+design_effect <- 1 + (avg_cluster_size - 1) * rho_within
+
+# Compare actual SE inflation
+se_inflation <- intervention_results %>%
+  filter(Method %in% c("Naive OLS", "Cluster-Robust CR2")) %>%
+  dplyr::select(Method, SE) %>%
+  pivot_wider(names_from = Method, values_from = SE) %>%
+  mutate(Inflation_Factor = `Cluster-Robust CR2` / `Naive OLS`)
+
+# Calculate effective sample size
+total_n <- nrow(study_data)
+effective_n <- total_n / design_effect
+```
+
+### Results and Implications
+
+ICC = **`r round(rho_within, 3)`** with average **`r round(avg_cluster_size, 1)`** observations per child creates design effect = **`r round(design_effect, 2)`**.
+
+This means:
+
+- Standard errors inflated by factor of **`r round(sqrt(design_effect), 2)`**
+- Effective sample size ≈ **`r round(effective_n, 0)`** instead of **`r total_n`**
+- Lost **`r round((1 - effective_n/total_n) * 100, 1)`%** statistical efficiency due to clustering
+
+## Model Diagnostics
+
+```{r diagnostics}
+# Test for heteroskedasticity
+bp_test <- lmtest::bptest(naive_ols)
+
+# Compare model fit statistics
+aic_naive <- AIC(naive_ols)
+aic_mixed_int <- AIC(mixed_intercept)
+aic_mixed_full <- AIC(mixed_full)
+
+# Check for convergence issues
+mixed_warnings <- mixed_full@optinfo$conv$lme4
+has_warnings <- length(mixed_warnings$messages) > 0
+```
+
+### Model Diagnostics Summary
+
+**Heteroskedasticity Test**: Breusch-Pagan test p-value = **`r round(bp_test$p.value, 4)`**`r if(bp_test$p.value < 0.05) " (***significant heteroskedasticity***)" else " (no significant heteroskedasticity)"`.
+
+**Model Fit**:
+
+- Naive OLS AIC: **`r round(aic_naive, 1)`**
+- Mixed (Random Intercept) AIC: **`r round(aic_mixed_int, 1)`**
+- Mixed (Random Int+Slope) AIC: **`r round(aic_mixed_full, 1)`**
+
+**Convergence**: `r if(has_warnings) paste("Mixed model convergence warnings:", paste(mixed_warnings$messages, collapse = "; ")) else "No convergence issues."`
+
+---
+
+# Simple Effects Analysis: Probing the Intervention × Time Interaction
+
+## Model Selection for Simple Effects
+
+We use **Mixed + CR2** for simple effects because it provides proper correlation modeling with robust standard errors.
+
+```{r simple-effects-setup}
+library(emmeans)
+
+# Use our Mixed + CR2 model for simple effects analysis
+final_model <- mixed_with_cr2
+final_vcov <- mixed_cr2_vcov
+```
+
+## Simple Slopes Analysis
+
+```{r simple-slopes}
+# Calculate simple slopes using emmeans with cluster-robust SEs
+simple_slopes <- emtrends(final_model, ~ intervention, var = "time_scaled",
+                         vcov. = final_vcov)
+
+# Get the results with confidence intervals and tests
+simple_slopes_summary <- summary(simple_slopes, infer = TRUE)
+
+# Convert to data frame for easier handling
+simple_slopes_results <- data.frame(
+  Group = c("Control", "Intervention"),
+  Slope = simple_slopes_summary$time_scaled.trend,
+  SE = simple_slopes_summary$SE,
+  df = simple_slopes_summary$df,
+  t_value = simple_slopes_summary$t.ratio,
+  p_value = simple_slopes_summary$p.value,
+  CI_lower = simple_slopes_summary$lower.CL,
+  CI_upper = simple_slopes_summary$upper.CL
+)
+
+# Test if slopes are significantly different from each other
+slope_contrast <- pairs(simple_slopes, reverse = TRUE)  # This gives Intervention - Control
+slope_contrast_summary <- summary(slope_contrast, infer = TRUE)
+```
+
+### Simple Slopes Results
+
+```{r simple-slopes-table, echo=FALSE}
+simple_slopes_results %>%
+  kable(digits = 3, 
+        col.names = c("Group", "Slope", "SE", "df", "t-value", "p-value", "CI Lower", "CI Upper"),
+        caption = "Simple slopes analysis with cluster-robust standard errors") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Comparison of Slopes
+
+```{r slope-comparison-table, echo=FALSE}
+slope_comparison_df <- data.frame(
+  Contrast = slope_contrast_summary$contrast,
+  Difference = slope_contrast_summary$estimate,
+  SE = slope_contrast_summary$SE,
+  df = slope_contrast_summary$df,
+  t_value = slope_contrast_summary$t.ratio,
+  p_value = slope_contrast_summary$p.value,
+  CI_lower = slope_contrast_summary$lower.CL,
+  CI_upper = slope_contrast_summary$upper.CL
+)
+
+slope_comparison_df %>%
+  kable(digits = 3,
+        col.names = c("Contrast", "Difference", "SE", "df", "t-value", "p-value", "CI Lower", "CI Upper"),
+        caption = "Comparison of slopes between groups") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Interpretation of Simple Effects
+
+**Control Group**: Slope = **`r round(simple_slopes_results$Slope[1], 3)`** (SE = **`r round(simple_slopes_results$SE[1], 3)`**, p = **`r round(simple_slopes_results$p_value[1], 3)`**). `r if(simple_slopes_results$p_value[1] < 0.05) "Significant" else "Non-significant"` change over time in control condition.
+
+**Intervention Group**: Slope = **`r round(simple_slopes_results$Slope[2], 3)`** (SE = **`r round(simple_slopes_results$SE[2], 3)`**, p = **`r round(simple_slopes_results$p_value[2], 3)`**). `r if(simple_slopes_results$p_value[2] < 0.05) "Significant" else "Non-significant"` improvement over time.
+
+**Difference**: Intervention group improves **`r round(slope_comparison_df$Difference, 3)`** points more per time unit than control (SE = **`r round(slope_comparison_df$SE, 3)`**, p = **`r round(slope_comparison_df$p_value, 3)`**).
+
+## Visualizing Simple Effects
+
+```{r simple-effects-plot}
+# Create predicted trajectories using emmeans
+time_range <- seq(0, 6, by = 0.5)
+
+# Get predicted values at each time point for both groups
+pred_grid <- expand.grid(
+  time_scaled = time_range,
+  intervention = c(0, 1),
+  age_baseline = mean(study_data$age_baseline, na.rm = TRUE),
+  iq = mean(study_data$iq, na.rm = TRUE),
+  ses = mean(study_data$ses, na.rm = TRUE)
+)
+
+# Get emmeans predictions with cluster-robust SEs
+predictions <- emmeans(final_model, ~ intervention | time_scaled, 
+                      at = list(time_scaled = time_range,
+                               age_baseline = mean(study_data$age_baseline, na.rm = TRUE),
+                               iq = mean(study_data$iq, na.rm = TRUE),
+                               ses = mean(study_data$ses, na.rm = TRUE)),
+                      vcov. = final_vcov)
+
+pred_summary <- summary(predictions, infer = TRUE)
+
+# Create data frame for plotting
+pred_data <- data.frame(
+  time_scaled = pred_summary$time_scaled,
+  time_months = pred_summary$time_scaled * 3,  # Convert back to months for labeling
+  group = factor(pred_summary$intervention, levels = c(0, 1), labels = c("Control", "Intervention")),
+  predicted = pred_summary$emmean,
+  se_pred = pred_summary$SE,
+  ci_lower = pred_summary$lower.CL,
+  ci_upper = pred_summary$upper.CL
+)
+
+# Create the simple effects plot
+simple_effects_plot <- pred_data %>%
+  ggplot(aes(x = time_months, y = predicted, color = group, fill = group)) +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.2, color = NA) +
+  geom_line(size = 1.5) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  scale_fill_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  labs(
+    title = "Simple Effects: Predicted Trajectories by Group",
+    subtitle = "Based on Mixed + CR2 model with cluster-robust standard errors", 
+    x = "Time (months since baseline)",
+    y = "Predicted Working Memory Score",
+    color = "Group",
+    fill = "Group",
+    caption = "Ribbons show 95% confidence intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  )
+
+print(simple_effects_plot)
+```
+
+## Statistical Significance of Group Differences
+
+Let's also test whether the groups differ significantly at specific timepoints:
+
+```{r group-differences}
+# Test group differences at key timepoints using emmeans
+test_timepoints <- c(0, 1, 2)  # baseline, 3 months, 6 months (in time_scaled units)
+
+# Get pairwise comparisons at each timepoint
+group_diffs <- emmeans(final_model, pairwise ~ intervention | time_scaled,
+                      at = list(time_scaled = test_timepoints,
+                               age_baseline = mean(study_data$age_baseline, na.rm = TRUE),
+                               iq = mean(study_data$iq, na.rm = TRUE),
+                               ses = mean(study_data$ses, na.rm = TRUE)),
+                      vcov. = final_vcov)
+
+# Extract the contrasts (reverse to get Intervention - Control)
+group_diff_summary <- summary(group_diffs$contrasts, infer = TRUE, reverse = TRUE)
+
+# Create results table
+group_diff_results <- data.frame(
+  Timepoint_Months = test_timepoints * 3,
+  Timepoint_Scaled = test_timepoints,
+  Difference = group_diff_summary$estimate,
+  SE = group_diff_summary$SE,
+  df = group_diff_summary$df,
+  t_value = group_diff_summary$t.ratio,
+  p_value = group_diff_summary$p.value,
+  CI_lower = group_diff_summary$lower.CL,
+  CI_upper = group_diff_summary$upper.CL
+)
+```
+
+### Group Differences at Specific Timepoints
+
+```{r group-diff-table, echo=FALSE}
+group_diff_results %>%
+  kable(digits = 3,
+        col.names = c("Time (Months)", "Time (Scaled)", "Group Difference", "SE", "df", "t-value", "p-value", "CI Lower", "CI Upper"),
+        caption = "Intervention vs Control group differences at specific timepoints") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Clinical/Practical Interpretation:
+
+The simple effects analysis reveals that the intervention is effective, producing sustained improvements in working memory over time compared to the control condition.
+
+---
+
+# Think about it: an aside to GLS approaches (Advanced / Optional)
+
+Could we have used GLS (Generalized Least Squares) for this study design as well? 
+
+The truth is: we actually already did! GLS, using a compound symmetry covariance structure, is mathematically identical to the random intercepts (or Mixed without CR2) model.
+
+But GLS allows us to **explicitly model** the correlation structure we observed while **avoiding random effects assumptions** in the covariance matrix. In addition, GLS allows us to flexibly specify the variance structure in addition to the correlation structure.
+
+## Model selection with GLS
+
+For our 6-timepoint design, we could consider:
+
+**Unstructured (`corSymm`)**: Estimates all 15 unique within-child correlations separately
+
+- Most flexible but requires many parameters
+- Good when you have sufficient data and want correlations to vary freely
+
+**AR(1) (`corAR1`)**: Assumes correlations decay exponentially with time lag
+
+- Often realistic for longitudinal data
+- Much more parsimonious than unstructured
+
+**Compound Symmetry (`corCompSymm`) (For completeness)**: Assumes all within-child correlations are equal
+
+- We actually already fit this model with the random intercepts model
+
+**Adding Heterogeneous Variances**: Combines any correlation structure with different variance structures
+
+- `varIdent()` - different variances by group/time (used here as an example)
+- `varPower()` - variance proportional to a power of the mean
+- `varExp()` - exponential variance function
+- `varConstPower()` - constant plus power variance function
+
+## A Comprehensive GLS Analysis
+
+Let's implement all GLS correlation structures and compare their standard errors to our mixed effects + CR2 approach:
+
+```{r gls-comparison}
+library(nlme)
+
+# Use full study_data (with missing values)
+# Mixed effects baselines for comparison
+mixed_baseline <- lmer(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses + 
+                      (1 | child_id), data = study_data)
+mixed_cr2 <- vcovCR(mixed_baseline, cluster = study_data$child_id, type = "CR2")
+
+# GLS models with different correlation structures
+
+# 1. Unstructured correlation
+gls_unstructured <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+                       data = study_data,
+                       correlation = corSymm(form = ~ 1 | child_id))
+
+# 2. Unstructured correlation + heterogenous variances by time
+gls_unstructured_hetero <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+                              data = study_data,
+                              correlation = corSymm(form = ~ 1 | child_id),
+                              weights = varIdent(form = ~ 1 | time_scaled))
+
+# 3. AR(1) correlation structure
+gls_ar1 <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+               data = study_data,
+               correlation = corAR1(form = ~ time_scaled | child_id))
+
+# 4. AR(1) + heterogeneous variances by time
+gls_ar1_hetero <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+                      data = study_data,
+                      correlation = corAR1(form = ~ time_scaled | child_id),
+                      weights = varIdent(form = ~ 1 | time_scaled))
+
+# 5. Compound symmetry
+gls_cs <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+              data = study_data,
+              correlation = corCompSymm(form = ~ 1 | child_id))
+
+# 6. Compound symmetry + heterogeneous variances
+gls_cs_hetero <- gls(working_memory_score ~ intervention * time_scaled + age_baseline + iq + ses,
+                     data = study_data,
+                     correlation = corCompSymm(form = ~ 1 | child_id),
+                     weights = varIdent(form = ~ 1 | time_scaled))
+
+# Extract standard errors for interaction effect only
+extract_interaction_se <- function(model, vcov_matrix = NULL) {
+  if (inherits(model, "gls")) {
+    coef_table <- summary(model)$tTable
+    return(coef_table["intervention:time_scaled", "Std.Error"])
+  } else if (!is.null(vcov_matrix)) {
+    ses <- sqrt(diag(vcov_matrix))
+    return(ses["intervention:time_scaled"])
+  } else {
+    coef_table <- summary(model)$coefficients
+    return(coef_table["intervention:time_scaled", "Std. Error"])
+  }
+}
+
+# Comprehensive comparison - interaction term only
+methods <- c("Mixed (no CR2)", "Mixed + CR2", "GLS Unstructured", "GLS Unstructured + Hetero", "GLS AR(1)", "GLS AR(1) + Hetero", "GLS Compound Symmetry", "GLS CS + Hetero")
+
+models <- list(
+  list(model = mixed_baseline, vcov = NULL),
+  list(model = mixed_baseline, vcov = mixed_cr2),
+  list(model = gls_unstructured, vcov = NULL),
+  list(model = gls_unstructured_hetero, vcov=NULL),
+  list(model = gls_ar1, vcov = NULL),
+  list(model = gls_ar1_hetero, vcov = NULL),
+  list(model = gls_cs, vcov = NULL),
+  list(model = gls_cs_hetero, vcov = NULL)
+)
+
+# Extract interaction standard errors
+interaction_ses <- sapply(models, function(x) extract_interaction_se(x$model, x$vcov))
+
+# Create comparison dataframe
+se_comparison <- data.frame(
+  Method = methods,
+  Interaction_SE = interaction_ses
+)
+
+# Calculate efficiency relative to Mixed + CR2 (second row)
+baseline_se <- interaction_ses[2]  # Mixed + CR2
+se_comparison$Interaction_Efficiency <- baseline_se / se_comparison$Interaction_SE
+
+print(se_comparison)
+```
+
+```{r icc-rho-comparisons}
+# Store correlation parameters for inline use
+ar1_param <- round(coef(gls_ar1$modelStruct$corStruct, unconstrained = FALSE), 3)
+cs_param <- round(coef(gls_cs$modelStruct$corStruct, unconstrained = FALSE), 3)
+icc_param <- round(icc(mixed_baseline)$ICC_adjusted, 3)
+```
+
+Because the CS GLS and the mixed effects random intercepts-only models are equivalent, note that ICC (`r icc_param`) is equal to the compound symmetry correlation (`r cs_param`).
+
+### Standard Error Comparison Results
+
+```{r se-comparison-table, echo=FALSE}
+# Round for display
+se_display <- se_comparison
+se_display$Interaction_SE <- round(se_display$Interaction_SE, 4)
+se_display$Interaction_Efficiency <- round(se_display$Interaction_Efficiency, 2)
+
+se_display %>%
+  kable(col.names = c("Method", "Interaction SE", "Interaction Efficiency"),
+        caption = "Standard errors and efficiency gains for interaction term relative to Mixed Effects + CR2") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Model Fit Comparison
+
+```{r model-selection}
+# Compare model fit using AIC and BIC
+fit_comparison <- data.frame(
+  Model = c("GLS Unstructured", "GLS Unstructured + Hetero", "GLS AR(1)", "GLS AR(1) + Hetero", 
+            "GLS Compound Symmetry", "GLS CS + Hetero"),
+  AIC = c(AIC(gls_unstructured), AIC(gls_unstructured_hetero), AIC(gls_ar1), AIC(gls_ar1_hetero), 
+          AIC(gls_cs), AIC(gls_cs_hetero)),
+  BIC = c(BIC(gls_unstructured), BIC(gls_unstructured_hetero), BIC(gls_ar1), BIC(gls_ar1_hetero), 
+          BIC(gls_cs), BIC(gls_cs_hetero)),
+  LogLik = c(logLik(gls_unstructured), logLik(gls_unstructured_hetero), logLik(gls_ar1), logLik(gls_ar1_hetero),
+             logLik(gls_cs), logLik(gls_cs_hetero))
+)
+
+# Sort by AIC
+fit_comparison <- fit_comparison[order(fit_comparison$AIC), ]
+fit_comparison$Delta_AIC <- fit_comparison$AIC - min(fit_comparison$AIC)
+
+print(fit_comparison)
+
+# Identify best fitting model and extract key statistics
+best_fit_model <- fit_comparison$Model[1]
+best_fit_aic <- round(fit_comparison$AIC[1], 1)
+```
+
+AIC, BIC, and Log-Likelihood are three commonly used model indices for assessing model fit. We can use these to help inform model selection.
+
+**Log-Likelihood**: How well the model fits the data. Higher (less negative) values = better fit.
+
+**AIC**: Balances fit vs complexity with modest penalty for extra parameters. Lower = better. Favors prediction accuracy.
+
+**BIC**: Balances fit vs complexity with harsher penalty for extra parameters. Lower = better. Favors simpler models.
+
+**When they disagree**: AIC and BIC are making different trade-offs between fit and simplicity - which is exactly what we see here. Here, we use AIC as the metric for fit because we know that the models favoured by BIC violate assumptions like compound symmetry and homoscedasticity.
+
+### Efficiency Summary
+
+```{r efficiency-summary}
+# Exclude mathematically equivalent methods from efficiency comparison
+gls_only_methods <- se_comparison[!se_comparison$Method %in% c("Mixed (no CR2)", "GLS Compound Symmetry"), ]
+
+# Find the most efficient GLS method (highest efficiency ratio among GLS methods)
+best_efficiency_idx <- which.max(gls_only_methods$Interaction_Efficiency)
+best_efficiency_method <- gls_only_methods$Method[best_efficiency_idx]
+best_efficiency_value <- round(gls_only_methods$Interaction_Efficiency[best_efficiency_idx], 2)
+
+# Find the best fitting GLS method and its efficiency
+best_fit_gls_idx <- which(gls_only_methods$Method == best_fit_model)
+best_fit_efficiency <- round(gls_only_methods$Interaction_Efficiency[best_fit_gls_idx], 2)
+
+# Extract key efficiency values for inline use
+mixed_cr2_se <- round(se_comparison$Interaction_SE[se_comparison$Method == "Mixed + CR2"], 4)
+best_efficiency_se <- round(gls_only_methods$Interaction_SE[best_efficiency_idx], 4)
+best_fit_se <- round(gls_only_methods$Interaction_SE[best_fit_gls_idx], 4)
+
+# Calculate efficiency gain percentages
+efficiency_gain_percent <- round((best_efficiency_value - 1) * 100, 0)
+best_fit_gain_percent <- round((best_fit_efficiency - 1) * 100, 0)
+```
+
+## Key Findings for Comparison
+
+
+**Compared to Mixed + CR2** (our robust baseline, SE = `r mixed_cr2_se`):
+
+- **Most efficient method**: `r best_efficiency_method` (`r best_efficiency_value`x more efficient, SE = `r best_efficiency_se`)
+- **Best model fit**: `r best_fit_model` (lowest AIC = `r best_fit_aic`, `r best_fit_efficiency`x efficiency, SE = `r best_fit_se`)
+- **Robust standard errors**: Mixed + CR2 provides conservative protection against misspecification
+
+### GLS vs Mixed Effects: Trade-offs
+
+The key learning point here is that if you have the ability to specify a covariance structure that is correct, you will obtain more efficiency in your SEs. The trade-off is that your covariance structure needs to be correct; otherwise, your conclusions will be wrong. 
+
+| Method | Efficiency vs Mixed+CR2 | Key Advantage | Trade-offs |
+|--------|--------|--------|--------|
+| **Mixed + CR2** | 1.00 (baseline) | Robust to misspecification | Loss of power |
+| **`r best_efficiency_method`** | `r best_efficiency_value`x | Best efficiency gain | Prone to misspecification |
+| **`r best_fit_model`** | `r best_fit_efficiency`x | Best model fit (AIC) | Prone to overfitting |
+
+### Recommendations
+
+**Use `r best_efficiency_method` when**:
+
+- You want **`r efficiency_gain_percent`% efficiency gain** over robust Mixed + CR2
+- You have evidence that **variances change over time** but correlations remain constant
+- Note that CS is indeed violated in this dataset, so this method, while efficient, is not the correct method to use
+
+**Use `r best_fit_model` when**:
+
+- **Model fit** is primary concern (best AIC: `r best_fit_aic`)
+- You have **sufficient sample size** for the additional correlation parameters
+- You want **moderate efficiency gain** (`r best_fit_efficiency`x) with flexible correlation structure
+
+**Use Mixed Effects + CR2 when**:
+
+- **Robustness** is more important than efficiency
+- You want **protection against correlation misspecification**
+- **Conservative inference** is preferred to avoid Type I errors
+
+---
+
+# Conclusions and Recommendations
+
+Of all the models that we picked, the mixed effects + CR2 model appeared to be the most robust. But is it truly the best model we could have picked?
+
+Recall that in the Mean Trajectories section, we saw that it looked like there was a larger intervention effect at the start, which then gradually plateau-ed over time. But our mixed effects model assumes that the time effect is linear, and thus isn't able to capture this intricacy.
+
+## Next time?
+
+Case study 3 concludes this "workshop" on Longitudinal Data Analysis I. I hope this was helpful! 
+
+Here are a bunch of other things that we haven't talked about:
+
+1. We may explore non-linear coefficients in the future, which can better model different time trajectories. 
+2. We used a random intercepts + random slopes model (a more complex version of multilevel modelling) which we haven't yet covered.
+3. What if our DV isn't continuous, but is instead binary, a time-to-event outcome, or data about rate or frequency? This requires an extension to GLMM (generalized linear mixed models).
+4. Apart from OLS, MLM and GLS, there is another approach known as Markov models, which focus more on state or temporal transitions (e.g. a child requiring intervention at t1 but not at t2). Less common in psychology but very common in biostatistics.
+
+Maybe next time?

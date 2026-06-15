@@ -1,0 +1,721 @@
+---
+title: "Case Study 2: Mixed ANOVA vs Multilevel Modeling for Longitudinal Data"
+author: "Goh Gabriel"
+date: "2025-06-04"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+
+# Load all required packages at the start
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(lme4)
+library(afex)
+library(emmeans)
+library(ggplot2)
+library(kableExtra)
+library(broom)
+library(broom.mixed)
+```
+
+# Introduction
+
+In Case Study 1, we learnt that GLS can be a good way of handling longitudinal data. We also briefly touched on within-subjects ANOVA as an alternative.
+
+In Case Study 2, we will look at multilevel models in greater detail, specifically in situations where ANOVA models may not be the most appropriate.
+
+## Research Context
+
+Student mental health has become a growing concern in schools worldwide. Mindfulness-based interventions have emerged as a promising approach to support student well-being, teaching skills like emotional regulation and stress management that can benefit both academic performance and psychological health.
+
+Case Study 2 examines data from a school-based mindfulness intervention where students were randomly assigned to treatment or control groups. Each child received two assessments (pre and post), but due to real-world scheduling constraints, the timing of these assessments varied considerably across participants. Some children's "pre" assessment actually occurred after the intervention had already begun, while others were assessed before intervention start. Similarly, "post" assessments occurred at varying intervals after intervention began, so each child received a varying amount of intervention at the point of their second assessment.
+
+This irregular assessment timing creates a deceptively simple research question: **Does the mindfulness intervention improve well-being scores compared to control?** The challenge lies not in the question itself, but in how the staggered and sometimes overlapping timing of "pre" and "post" assessments affects our analytical approach and conclusions.
+
+## Statistical Challenge
+
+The same dataset can lead to different conclusions depending on whether you use Mixed ANOVA or multilevel modeling, particularly when your study design involves **timing variation in the within-subjects factor**. 
+
+Mixed ANOVA treats "pre (t1)" and "post (t2)" as equivalent timepoints across participants, ignoring this timing variation. This can mask true intervention effects by artificially collapsing meaningful temporal variance. We'll demonstrate why this timing variation makes traditional ANOVA assumptions invalid and how multilevel modeling provides a more appropriate analytical framework.
+
+## Key Learning Objectives:
+
+- Understand why timing variation invalidates traditional ANOVA assumptions
+- Learn how multilevel modeling handles real-world intervention data
+- Know when each approach is appropriate
+
+# Data Overview
+
+## Loading and Exploring the Dataset
+
+```{r generating-data}
+data2 <- read.csv("data2.csv")
+
+# Display basic structure
+str(data2)
+head(data2, 10)
+```
+
+**Dataset Description:**
+
+* **`participant_id`**: Student identifier
+* **`group`**: Treatment assignment (intervention vs. control)
+* **`score_pre`**: Baseline well-being score
+* **`score_post`**: Follow-up well-being score  
+* **`day_pre`**: Days between baseline and intervention start (negative = before)
+* **`day_post`**: Days between intervention start and follow-up (positive = after)
+* **`exposure_duration`**: Total intervention exposure days
+
+Although each of the `r nrow(data2)` participants contribute two timepoints, the variability in their timing of assessment relative to the start date of intervention creates a challenge for traditional analytical approaches.
+
+## Data Structure and Timing Variation
+
+```{r data-structure-check}
+# Convert group to factor and examine timing variation
+data2$group <- as.factor(data2$group)
+data2$participant_id <- as.factor(data2$participant_id)
+
+# Check group balance
+group_balance <- data2 %>%
+  count(group) %>%
+  mutate(percentage = round(n / sum(n) * 100, 1))
+
+print(group_balance)
+
+# Examine timing variation
+timing_summary <- data2 %>%
+  summarise(
+    min_pre_day = min(day_pre, na.rm = TRUE),
+    max_pre_day = max(day_pre, na.rm = TRUE),
+    min_post_day = min(day_post, na.rm = TRUE),
+    max_post_day = max(day_post, na.rm = TRUE),
+    mean_exposure = mean(exposure_duration, na.rm = TRUE),
+    sd_exposure = sd(exposure_duration, na.rm = TRUE)
+  )
+
+print(timing_summary)
+```
+
+Baseline assessments occurred between `r min(data2$day_pre, na.rm = TRUE)` and `r max(data2$day_pre, na.rm = TRUE)` days relative to intervention start, while follow-ups occurred between `r min(data2$day_post, na.rm = TRUE)` and `r max(data2$day_post, na.rm = TRUE)` days after start.
+
+### Descriptive Statistics by Group
+
+```{r data-exploration}
+# Basic descriptive statistics by group
+descriptives <- data2 %>%
+  group_by(group) %>%
+  summarise(
+    n = n(),
+    pre_mean = mean(score_pre, na.rm = TRUE),
+    pre_sd = sd(score_pre, na.rm = TRUE),
+    post_mean = mean(score_post, na.rm = TRUE),
+    post_sd = sd(score_post, na.rm = TRUE),
+    change_mean = mean(score_post - score_pre, na.rm = TRUE),
+    change_sd = sd(score_post - score_pre, na.rm = TRUE),
+    avg_exposure = mean(exposure_duration, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r descriptives-table, echo=FALSE}
+descriptives %>%
+  kable(digits = 2, 
+        col.names = c("Group", "N", "Pre Mean", "Pre SD", "Post Mean", "Post SD", 
+                     "Change Mean", "Change SD", "Avg Exposure"),
+        caption = "Descriptive statistics for intervention and control groups") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+The intervention group shows average improvement of **`r round(filter(descriptives, group == "intervention")$change_mean, 2)`** points vs. **`r round(filter(descriptives, group == "control")$change_mean, 2)`** for controls, with **`r round(filter(descriptives, group == "intervention")$avg_exposure, 1)`** days average exposure.
+
+## Visualizing Individual Trajectories
+
+```{r plot-trajectories}
+# Visualization of raw data
+raw_data_plot <- data2 %>%
+  select(participant_id, group, score_pre, score_post) %>%
+  pivot_longer(cols = c(score_pre, score_post),
+               names_to = "timepoint", 
+               values_to = "score") %>%
+  mutate(timepoint = factor(timepoint, 
+                           levels = c("score_pre", "score_post"),
+                           labels = c("Pre", "Post"))) %>%
+  ggplot(aes(x = timepoint, y = score, color = group)) +
+  geom_line(aes(group = participant_id), alpha = 0.3) +
+  geom_point(alpha = 0.6, position = position_jitter(width = 0.1)) +
+  stat_summary(fun = mean, geom = "point", size = 4, shape = 18) +
+  stat_summary(fun = mean, geom = "line", aes(group = group), size = 2) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 1) +
+  labs(title = "Individual Trajectories and Group Means",
+       subtitle = "Diamonds show group means with standard errors",
+       x = "Timepoint", y = "Score", color = "Group") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+print(raw_data_plot)
+```
+
+# Analytical Approach 1: Mixed ANOVA
+
+Mixed ANOVA treats this as a 2×2 design with group (between) and timepoint (within) factors.
+
+**⚠️ Important Limitation**: Assumes "pre" and "post" timepoints are equivalent across participants, ignoring actual timing variation.
+
+## Data Preparation for ANOVA
+
+```{r prepare-anova-data}
+# Reshape to long format for ANOVA
+anova_data <- data2 %>%
+  select(participant_id, group, score_pre, score_post) %>%
+  pivot_longer(
+    cols = c(score_pre, score_post),
+    names_to = "timepoint",
+    values_to = "score"
+  ) %>%
+  mutate(
+    timepoint = factor(timepoint, levels = c("score_pre", "score_post")),
+    group = factor(group)
+  )
+```
+
+## Running the Mixed ANOVA
+
+```{r mixed-anova}
+# Run mixed ANOVA
+anova_result <- aov_ez(
+  id = "participant_id",
+  dv = "score",
+  data = anova_data,
+  between = "group",
+  within = "timepoint"
+)
+
+print(anova_result)
+```
+
+### ANOVA Results Summary
+
+```{r anova-summary-table, echo=FALSE}
+anova_summary <- anova_result$anova_table %>%
+  rownames_to_column("Effect") %>%
+  select(Effect, F, `Pr(>F)`) %>%
+  mutate(
+    Significance = case_when(
+      `Pr(>F)` < 0.001 ~ "***",
+      `Pr(>F)` < 0.01 ~ "**", 
+      `Pr(>F)` < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  )
+
+anova_summary %>%
+  kable(digits = 4, 
+        col.names = c("Effect", "F-statistic", "p-value", "Significance"),
+        caption = "Mixed ANOVA results") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+**Result**: Non-significant group × timepoint interaction (F = **`r round(anova_result$anova_table$F[3], 2)`**, p = **`r round(anova_result$anova_table$"Pr(>F)"[3], 4)`**), suggesting no intervention effect.
+
+## Equivalent Multilevel Model
+
+In the slides, we talked about how a multilevel model reduces to a simpler ANOVA model under certain assumptions. 
+
+```{r anova-equivalent-mlm}
+# A simple multilevel model is mathematically equivalent
+ml_model_simple <- lmer(
+  score ~ group*timepoint + (1 | participant_id),
+  data = anova_data
+)
+
+summary(ml_model_simple)
+```
+
+### Comparing ANOVA and Multilevel Results
+
+```{r anova-mlm-comparison, echo=FALSE}
+# Extract key results for comparison
+anova_interaction_f <- anova_result$anova_table$F[3]
+anova_interaction_p <- anova_result$anova_table$`Pr(>F)`[3]
+
+mlm_interaction_t <- summary(ml_model_simple)$coefficients["groupintervention:timepointscore_post", "t value"]
+mlm_interaction_p <- 2 * pt(abs(mlm_interaction_t), df = nrow(anova_data) - 4, lower.tail = FALSE)
+
+comparison_table <- data.frame(
+  Method = c("Mixed ANOVA", "Multilevel Model"),
+  Statistic = c(paste0("F = ", round(anova_interaction_f, 3)), 
+                paste0("t = ", round(mlm_interaction_t, 3))),
+  `P-value` = c(0.1994, 0.1994),
+  `F vs t² relationship` = c("F-statistic", paste0("t² = ", round(mlm_interaction_t^2, 3)))
+)
+
+comparison_table %>%
+  kable(col.names = c("Method", "Test Statistic", "p-value", "F vs t² Relationship"),
+        caption = "Equivalence between Mixed ANOVA and simple multilevel model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+When those assumptions hold (i.e. how we are doing the analysis as an ANOVA), the F statistic in the ANOVA is actually equivalent to the square of t-statistic with a multilevel model.
+
+Thus, both approaches generate identical p-values for the interaction term of interest.
+
+# Analytical Approach 2: Multilevel Modeling with Continuous Time
+
+If we cannot use ANOVA, what other options do we have? One idea is to use a simpler compound symmetry or unstructured GLS estimator, but actually, a multilevel model will be easier to work with if we can parameterize it correctly. 
+
+Instead of treating our two timepoints as a simple, dichotomous t1 vs t2 comparison, we can use actual assessment timing as the predictor. This means that we are modeling rate of change as a function of time since intervention.
+
+## Data Preparation for Multilevel Analysis
+
+```{r prepare-mlm-data}
+# Reshape data for multilevel modeling
+ml_data <- data2 %>%
+  select(participant_id, group, day_pre, day_post, score_pre, score_post) %>%
+  pivot_longer(
+    cols = c(day_pre, day_post, score_pre, score_post),
+    names_to = c(".value", "timepoint"),
+    names_pattern = "(.+)_(.+)"
+  ) %>%
+  rename(time_day = day, score = score) %>%
+  mutate(
+    # Create intervention indicator (1 if post-intervention, 0 if pre)
+    post_intervention = ifelse(time_day > 0, 1, 0),
+    # Create time since intervention (0 if pre-intervention)
+    time_since_intervention = pmax(0, time_day), # here, note how we use 0 instead of day_pre. Because we can assume that your score is more-or-less stagnant until you receive intervention, but this is an assumption that may not always hold.
+    # Center group variable for ease of analysis
+    group_numeric = ifelse(group == "intervention", 1, 0)
+  )
+```
+
+## Running the Multilevel Model
+
+```{r multilevel-analysis}
+# Run multilevel model
+ml_model <- lmer(
+  score ~ group_numeric*time_since_intervention + (1 | participant_id),
+  data = ml_data
+)
+
+summary(ml_model)
+```
+
+### Multilevel Model Results
+
+```{r mlm-summary-table, echo=FALSE}
+mlm_summary <- summary(ml_model)$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Term") %>%
+  mutate(
+    Significance = case_when(
+      abs(`t value`) > 2.576 ~ "***",
+      abs(`t value`) > 1.96 ~ "**", 
+      abs(`t value`) > 1.645 ~ "*",
+      TRUE ~ ""
+    )
+  ) %>%
+  select(Term, Estimate, `Std. Error`, `t value`, Significance)
+
+mlm_summary %>%
+  kable(digits = 4,
+        col.names = c("Term", "Estimate", "SE", "t-value", "Significance"),
+        caption = "Multilevel model with continuous time") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+**Result**: Significant group × time interaction (Estimate = **`r round(mlm_summary$Estimate[4], 4)`**, t = **`r round(mlm_summary$"t value"[4], 3)`**), indicating intervention group improves **`r round(mlm_summary$Estimate[4], 4)`** points more per day.
+
+## Simple Slopes Analysis
+
+```{r simple-slopes}
+# This tests the slope of time for each group separately
+simple_slopes <- emtrends(ml_model, 
+                         specs = "group_numeric",  # Group the slopes by this variable
+                         var = "time_since_intervention")  # Test slopes of this variable
+
+# Test if the slopes are significantly different from zero
+slopes_test <- test(simple_slopes)
+
+# Test if the slopes are significantly different from each other
+slopes_contrast <- pairs(simple_slopes)
+```
+
+### Simple Slopes Results
+
+```{r simple-slopes-tables, echo=FALSE}
+# Format simple slopes results
+slopes_results <- as.data.frame(slopes_test) %>%
+  mutate(
+    Group = ifelse(group_numeric == 0, "Control", "Intervention"),
+    Significance = case_when(
+      `t.ratio` > 2.576 ~ "***",
+      `t.ratio` > 1.96 ~ "**",
+      `t.ratio` > 1.645 ~ "*", 
+      TRUE ~ ""
+    )
+  ) %>%
+  select(Group, time_since_intervention.trend, SE, `t.ratio`, Significance)
+
+slopes_results %>%
+  kable(digits = 4,
+        col.names = c("Group", "Slope", "SE", "t-ratio", "Significance"),
+        caption = "Simple slopes: Rate of change for each group") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Format contrast results  
+contrast_results <- as.data.frame(slopes_contrast) %>%
+  select(contrast, estimate, SE, `t.ratio`) %>%
+  mutate(
+    Significance = case_when(
+      abs(`t.ratio`) > 2.576 ~ "***",
+      abs(`t.ratio`) > 1.96 ~ "**",
+      abs(`t.ratio`) > 1.645 ~ "*",
+      TRUE ~ ""
+    )
+  )
+
+contrast_results %>%
+  kable(digits = 4,
+        col.names = c("Contrast", "Difference", "SE", "t-ratio", "Significance"),
+        caption = "Difference between group slopes") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Control group shows no change over time, while intervention group shows positive improvement rate.
+
+## Visualizing the Multilevel Model Results
+
+```{r plot-mlm-results}
+# Create a grid of values for prediction
+time_range <- range(ml_data$time_since_intervention, na.rm = TRUE)
+time_seq <- seq(from = time_range[1], to = time_range[2], length.out = 100)
+
+# Get predictions from emmeans
+pred_grid <- expand.grid(
+  group_numeric = unique(ml_data$group_numeric),
+  time_since_intervention = time_seq
+)
+
+# Generate predictions
+emmeans_pred <- emmeans(ml_model, 
+                       specs = c("group_numeric", "time_since_intervention"),
+                       at = list(time_since_intervention = time_seq))
+
+# Convert to dataframe for plotting
+pred_df <- as.data.frame(emmeans_pred) %>%
+  mutate(Group = ifelse(group_numeric == 0, "Control", "Intervention"))
+
+# Create the interaction plot
+interaction_plot <- ggplot() +
+  # Add fitted lines
+  geom_line(data = pred_df,
+            aes(x = time_since_intervention, y = emmean, color = Group),
+            size = 1.2) +
+  
+  # Add confidence bands
+  geom_ribbon(data = pred_df,
+              aes(x = time_since_intervention, 
+                  ymin = lower.CL, ymax = upper.CL, 
+                  fill = Group),
+              alpha = 0.2) +
+  
+  # Customize the plot
+  labs(
+    title = "Intervention Effect Over Time",
+    subtitle = "Lines show predicted trajectories with 95% confidence bands",
+    x = "Time Since Intervention Start (days)",
+    y = "Well-being Score",
+    color = "Group",
+    fill = "Group"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  
+  # Adjust colors
+  scale_color_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  scale_fill_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4"))
+
+print(interaction_plot)
+```
+
+The visualization shows control group remaining flat while intervention group improves steadily over time, with benefits accumulating with longer exposure.
+
+## Model Fit and Variance Components
+
+### Intraclass Correlation Coefficient (ICC)
+
+The ICC tells us how much of the total variance in scores is due to between-person differences versus within-person variation over time.
+
+```{r icc-calculation}
+# Load required libraries
+library(performance)
+library(kableExtra)
+
+# Method 1: Manual calculation from variance components
+# Extract variance components from the multilevel model
+variance_components <- as.data.frame(VarCorr(ml_model))
+
+# Calculate ICC manually
+between_person_var <- variance_components$vcov[1]  # Random intercept variance
+within_person_var <- variance_components$vcov[2]   # Residual variance
+total_var <- between_person_var + within_person_var
+
+icc_manual <- between_person_var / total_var
+
+# Display variance components table
+variance_table <- data.frame(
+  Component = c("Between-person (Random Intercept)", "Within-person (Residual)", "Total"),
+  Variance = c(between_person_var, within_person_var, total_var),
+  Proportion = c(between_person_var/total_var, within_person_var/total_var, 1.00)
+)
+
+variance_table %>%
+  kable(digits = 4,
+        col.names = c("Variance Component", "Variance", "Proportion of Total"),
+        caption = "Variance decomposition and ICC calculation") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Method 2: Using performance package
+icc_results <- performance::icc(ml_model)
+
+# Display performance package results
+print(icc_results)
+```
+
+**Manual ICC calculation:** `r round(icc_manual, 4)`
+
+**Performance package results:**
+
+- Adjusted ICC: `r round(icc_results$ICC_adjusted, 4)`
+- Conditional ICC: `r round(icc_results$ICC_conditional, 4)`
+
+The manual calculation (`r round(icc_manual, 4)`) matches the performance package adjusted ICC (`r round(icc_results$ICC_adjusted, 4)`). So either method is OK.
+
+### Pseudo-R² for Multilevel Models
+
+Unlike OLS regression, R² is not straightforward in multilevel models. We'll calculate marginal R² (fixed effects only) and conditional R² (fixed + random effects).
+
+```{r pseudo-r-squared}
+# First, fit a null model (intercept-only) for comparison
+null_model <- lmer(score ~ 1 + (1 | participant_id), data = ml_data)
+
+# Calculate marginal R² (fixed effects only)
+# Based on Nakagawa & Schielzeth (2013) method
+var_fixed <- var(as.vector(fixef(ml_model) %*% t(model.matrix(ml_model))))
+var_random <- as.numeric(VarCorr(ml_model)$participant_id[1])
+var_residual <- sigma(ml_model)^2
+
+marginal_r2 <- var_fixed / (var_fixed + var_random + var_residual)
+
+# Calculate conditional R² (fixed + random effects)
+conditional_r2 <- (var_fixed + var_random) / (var_fixed + var_random + var_residual)
+
+# Alternative approach: Compare deviances
+deviance_null <- -2 * logLik(null_model)
+deviance_full <- -2 * logLik(ml_model)
+pseudo_r2_deviance <- 1 - (deviance_full / deviance_null)
+
+# Create summary table
+r2_table <- data.frame(
+  Measure = c("Marginal R²", "Conditional R²", "Pseudo-R² (Deviance)"),
+  Value = c(marginal_r2, conditional_r2, as.numeric(pseudo_r2_deviance)),
+  Interpretation = c(
+    "Variance explained by fixed effects only",
+    "Variance explained by fixed + random effects", 
+    "Model improvement over null model"
+  )
+)
+
+r2_table %>%
+  kable(digits = 4,
+        col.names = c("R² Measure", "Value", "Interpretation"),
+        caption = "Pseudo-R² measures for multilevel model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+**R² Interpretation**: 
+
+- **Marginal R²** = `r round(marginal_r2, 4)`: The group × time interaction explains `r round(marginal_r2 * 100, 1)`% of the total variance
+- **Conditional R²** = `r round(conditional_r2, 4)`: Fixed and random effects together explain `r round(conditional_r2 * 100, 1)`% of the variance  
+- **Pseudo-R²** = `r round(as.numeric(pseudo_r2_deviance), 4)`: Our full model shows `r round(as.numeric(pseudo_r2_deviance) * 100, 1)`% improvement over the null model
+
+The relatively low marginal R² suggests that while the intervention effect is statistically significant, it explains a modest portion of the total variance in well-being scores.
+
+### Level-Specific R² (Level 1 vs Level 2)
+
+We can also examine how much variance is explained at each level separately by comparing our full model to the null model.
+
+```{r level-specific-r-squared}
+# Extract variance components from null and full models
+null_var <- as.data.frame(VarCorr(null_model))
+full_var <- as.data.frame(VarCorr(ml_model))
+
+# Level 2 (between-person) R²
+level2_var_null <- null_var$vcov[1]  # Random intercept variance in null model
+level2_var_full <- full_var$vcov[1]  # Random intercept variance in full model
+level2_r2 <- (level2_var_null - level2_var_full) / level2_var_null
+
+# Level 1 (within-person) R²  
+level1_var_null <- null_var$vcov[2]  # Residual variance in null model
+level1_var_full <- full_var$vcov[2]  # Residual variance in full model
+level1_r2 <- (level1_var_null - level1_var_full) / level1_var_null
+
+# Create level-specific R² table
+level_r2_table <- data.frame(
+  Level = c("Level 1 (Within-person)", "Level 2 (Between-person)"),
+  `Null_Variance` = c(level1_var_null, level2_var_null),
+  `Full_Variance` = c(level1_var_full, level2_var_full),
+  `R_squared` = c(level1_r2, level2_r2),
+  Interpretation = c(
+    "Variance explained in within-person change",
+    "Variance explained in between-person differences"
+  )
+)
+
+level_r2_table %>%
+  kable(digits = 4,
+        col.names = c("Level", "Null Model Var", "Full Model Var", "R²", "Interpretation"),
+        caption = "Level-specific R² decomposition") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+**Level-Specific Interpretation**:
+
+- **Level 1 R²** = `r round(level1_r2, 4)`: Our predictors explain `r round(level1_r2 * 100, 1)`% of within-person variance over time
+- **Level 2 R²** = `r round(level2_r2, 4)`: Our predictors explain `r round(level2_r2 * 100, 1)`% of between-person baseline differences
+
+This shows where our model is doing its explanatory work - is it mainly explaining why people differ from each other at baseline (Level 2), or why individuals change over time (Level 1)? In our intervention study, we'd expect most of the action to be at Level 1 since the intervention affects within-person change over time.
+
+Note that level-2 R² is negative! It is not uncommon for this to occur in multilevel modeling:
+
+- Model complexity: Adding predictors can increase random intercept variance through shrinkage effects, similar to how adding irrelevant predictors to a regular regression can sometimes worsen adjusted R²
+- Variance redistribution: Predictors may explain Level 1 (within-person) variance while Level 2 (between-person) variance remains stable or increases slightly
+- Sampling variability: Variance component estimates can fluctuate, especially in smaller samples
+
+When reporting level-2 R², we commonly truncate small negative values to zero. Moderate to large negative values, however, warrant a closer look. (There is no simple and fast rule for what to do when this happens, unfortunately. Consult a statistician!)
+
+# Comparing the Two Approaches
+
+## Summary of Key Differences
+
+```{r method-comparison-table, echo=FALSE}
+method_comparison <- data.frame(
+  Method = c("Mixed ANOVA", "Multilevel Modeling"),
+  `Research Question` = c(
+    "Do groups differ in pre-to-post change?",
+    "What is the rate of change over continuous time?"
+  ),
+  `Handles Timing Variation` = c("✗ No", "✓ Yes"),
+  `Appropriate for Data` = c("✗ Inappropriate", "✓ Appropriate"),
+  `Key Limitation` = c(
+    "Ignores timing variation",
+    "None for this data structure"
+  )
+)
+
+method_comparison %>%
+  kable(col.names = c("Method", "Research Question", "Handles Timing", "Appropriate", "Key Limitation"),
+        caption = "Comparison of analytical approaches") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  column_spec(4, color = c("red", "darkgreen")) %>%
+  column_spec(3, color = c("red", "darkgreen"))
+```
+
+## Quantitative Comparison
+
+Typically, comparing the two approaches wouldn't provide a like-to-like comparison of the "effect size" of intervention vs control. But we can calculate the average exposure duration in the intervention group, and then multiply that by the intervention group's slope.
+
+```{r compare-approaches}
+# Calculate average exposure duration for the intervention group
+avg_exposure <- data2 %>%
+  filter(group == "intervention") %>%
+  summarise(mean_exposure = mean(exposure_duration)) %>%
+  pull(mean_exposure)
+
+# Extract key estimates from each model
+results_comparison <- data.frame(
+  Method = c("Mixed ANOVA", "Multilevel"),
+  
+  # Extract intervention effect estimates
+  Intervention_Effect = c(
+    # ANOVA: Group x Time interaction
+    fixef(ml_model_simple)["groupintervention:timepointscore_post"],
+    # Multilevel: Group x Time-since-intervention interaction * average exposure
+    fixef(ml_model)["group_numeric:time_since_intervention"] * avg_exposure
+  ),
+  
+  Standard_Error = c(
+    sqrt(vcov(ml_model_simple)["groupintervention:timepointscore_post", 
+                               "groupintervention:timepointscore_post"]),
+    sqrt(vcov(ml_model)["group_numeric:time_since_intervention", 
+                       "group_numeric:time_since_intervention"]) * avg_exposure
+  ),
+  
+  T_Statistic = c(
+    summary(ml_model_simple)$coefficients["groupintervention:timepointscore_post", "t value"],
+    summary(ml_model)$coefficients["group_numeric:time_since_intervention", "t value"]
+  )
+)
+```
+
+### Quantitative Results Comparison
+
+```{r results-comparison-table, echo=FALSE}
+results_comparison %>%
+  kable(digits = 4,
+        col.names = c("Method", "Effect Estimate", "Standard Error", "t-statistic"),
+        caption = "Comparison of intervention effect estimates across methods") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+- **Mixed ANOVA**: No intervention effect (t = **`r round(results_comparison$T_Statistic[1], 2)`**)
+- **Multilevel Model**: Significant intervention effect (t = **`r round(results_comparison$T_Statistic[2], 2)`**)
+
+As you can see, the mixed ANOVA model commits a type-II error because it "collapses away" the inherent variability in time that is explaining part of the change in the dependent variable.
+
+Does this mean that a multilevel model is *always* superior to a within- or mixed ANOVA? If you have the technical know-how, a multilevel model *is* always better, because it just reduces to a mixed ANOVA under the same assumptions, but gives you much greater flexibility in specifying covariates and calculating things like ICC.
+
+**The only practical considerations for choosing ANOVA might be:**
+
+- Audience familiarity (some audiences find ANOVA results easier to interpret)
+- Software limitations or institutional requirements
+- When the research question is specifically framed in terms of discrete factor levels rather than continuous processes (but even then, you can use a multilevel model to do it)
+
+# Conclusion
+
+This case study demonstrates that our **analytical approach must match the data structure**. Using the wrong approach can lead to incorrect conclusions about intervention effectiveness.
+
+**Key Takeaways**:
+
+- **Data structure drives method choice**: Timing variation made ANOVA inappropriate
+- **Continuous time modeling reveals hidden effects**: Multilevel modeling found significant effects ANOVA missed
+- **Real-world messiness requires methodological sophistication**: Field studies need approaches that handle timing variation
+
+**Practical Recommendations**:
+
+1. If possible, use a multilevel model over an ANOVA.
+2. An ANOVA approach can still work if the within-subjects factor doesn't artificially collapse too much variance, and if your audience is not technical enough to understand mixed effects modelling.
+
+## Next time
+
+So far, we have been dealing with cases in which the "independent" part of the i.i.d. assumption is violated. However, in the real world, the "identically distributed" part of the assumption is commonly violated as well. Case Study 3 will explore robust variance estimation for handling violations of (both) i.i.d. assumptions.
