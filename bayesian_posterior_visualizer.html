@@ -102,15 +102,15 @@
     <span style="color:var(--yellow)">prior (your belief)</span>
   </div>
 
-  <!-- Anchor spans for stage margin notes — one per stage, sits just above the stepper -->
-  <span id="ref-s1-anchor"></span><span id="ref-s2-anchor"></span><span id="ref-s3-anchor"></span>
-
   <!-- Stepper -->
   <div class="stepper">
     <button class="step active" id="step-1" onclick="setStage(1)"><span class="step-num">1</span>The<br>likelihood</button>
     <button class="step"        id="step-2" onclick="setStage(2)"><span class="step-num">2</span>The<br>prior</button>
     <button class="step"        id="step-3" onclick="setStage(3)"><span class="step-num">3</span>The<br>posterior</button>
   </div>
+
+  <!-- Anchor spans for stage margin notes — sits after stepper so notes align to explainer -->
+  <span id="ref-s1-anchor"></span><span id="ref-s2-anchor"></span><span id="ref-s3-anchor"></span>
 
   <!-- Explainer (JS-injected) -->
   <div class="explainer" id="explainer"></div>
