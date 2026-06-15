@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>1.2 The APCES Framework — Longitudinal Data Analysis</title>
   <link rel="stylesheet" href="style.css">
-  <!-- KaTeX for math rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
@@ -16,6 +15,8 @@
       ]
     });">
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
 </head>
 <body>
 
@@ -28,15 +29,18 @@
       <p class="subtitle">Architecture, Parameters, Criterion, Estimator, Solver</p>
 
       <div class="objectives">
-        <div class="obj-label">Learning objectives</div>
-        <ul>
-          <li>Decompose any statistical method into its five constituent components</li>
-          <li>Understand what each component contributes and why it matters</li>
-          <li>Apply the APCES lens to OLS as a worked example</li>
-        </ul>
+        <div class="objectives-icon"><i data-lucide="target"></i></div>
+        <div class="objectives-body">
+          <div class="obj-label">Learning objectives</div>
+          <ul>
+            <li>Decompose any statistical method into its five constituent components</li>
+            <li>Understand what each component contributes and why it matters</li>
+            <li>Apply the APCES lens to OLS as a worked example</li>
+          </ul>
+        </div>
       </div>
 
-      <div class="prose">
+      <div class="prose prose-col">
 
         <p>
           Before looking at specific analysis methods, it helps to have a unified lens for
@@ -49,12 +53,18 @@
 
         <h2>1. Architecture</h2>
 
+        <!-- Margin note: θ_true -->
+        <aside class="margin-note blue" style="top: 22.5rem;">
+          <span class="note-label">Notation</span>
+          $\theta_{\text{true}}$ is read "theta true" — the unknowable population value we are trying to approximate. $\hat\theta$ ("theta hat") is our estimate from the sample.
+        </aside>
+
         <p>
           When evaluating a program, we typically start with a research question:
         </p>
 
-        <blockquote style="border-left:3px solid var(--blue); padding:0.5rem 1rem; margin:1rem 0; font-style:italic; color:var(--text-muted);">
-          <strong style="color:var(--text)">RQ:</strong> After receiving the intervention, how much will its recipients improve?
+        <blockquote>
+          <strong>RQ:</strong> After receiving the intervention, how much will its recipients improve?
         </blockquote>
 
         <p>
@@ -77,6 +87,12 @@
           <em>how</em> $\theta_{\text{true}}$ generates data, we dramatically narrow the search
           space and make the problem tractable.
         </p>
+
+        <!-- Margin note: DGP -->
+        <aside class="margin-note" style="top: 36rem;">
+          <span class="note-label">Key concept</span>
+          The <strong>DGP</strong> is not a description of reality — it is a deliberate simplification. A good DGP captures the features of the world that matter most for your research question.
+        </aside>
 
         <p>
           We call these assumptions the <strong>data-generating process (DGP)</strong>. In a
@@ -103,14 +119,23 @@
         </p>
 
         <div class="callout blue">
-          <div class="callout-title">Formally</div>
-          The architecture defines a family of probability distributions $p(y \mid \theta)$,
-          parameterised by $\theta_{\text{true}}$. Different architectural choices — what predicts
-          what, how errors behave, whether observations are independent — lead to entirely
-          different estimation strategies.
+          <div class="callout-icon"><i data-lucide="info"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">Formally</div>
+            The architecture defines a family of probability distributions $p(y \mid \theta)$,
+            parameterised by $\theta_{\text{true}}$. Different architectural choices — what predicts
+            what, how errors behave, whether observations are independent — lead to entirely
+            different estimation strategies.
+          </div>
         </div>
 
         <h2>2. Parameters</h2>
+
+        <!-- Margin note: parameters vs estimates -->
+        <aside class="margin-note" style="top: 56rem;">
+          <span class="note-label">Remember</span>
+          Parameters live in the <em>population</em>. Estimates live in your <em>sample</em>. This distinction is the entire foundation of inferential statistics.
+        </aside>
 
         <p>
           Once we have written down our DGP, the next question is: what exactly are we trying
@@ -149,6 +174,12 @@
 
         <h2>3. Criterion</h2>
 
+        <!-- Margin note: loss function -->
+        <aside class="margin-note amber" style="top: 82rem;">
+          <span class="note-label">ML connection</span>
+          In machine learning, the criterion is called a <strong>loss function</strong>. OLS's RSS is equivalent to mean squared error (MSE) — the most common loss in regression.
+        </aside>
+
         <p>
           We now know which parameters we want to estimate. But there are many possible values
           of $\hat{\beta}_1$ that could plausibly describe our data. How do we decide which one
@@ -179,6 +210,12 @@
         </p>
 
         <h2>4. Estimator</h2>
+
+        <!-- Margin note: Gauss-Markov -->
+        <aside class="margin-note green" style="top: 102rem;">
+          <span class="note-label">Gauss–Markov theorem</span>
+          When the DGP assumptions hold, OLS is the <strong>Best Linear Unbiased Estimator (BLUE)</strong> — no other linear unbiased estimator has lower variance. This is the mathematical warranty for using OLS.
+        </aside>
 
         <p>
           The criterion tells us <em>what</em> we are optimising for. The <strong>estimator</strong>
@@ -213,13 +250,21 @@
           <li><strong>Identical distribution</strong> — all errors are drawn from the same $\mathcal{N}(0, \sigma^2)$; no subject is systematically noisier than another.</li>
         </ul>
 
-        <p>
-          When these assumptions hold, OLS satisfies all three properties above. This result —
-          the <strong>Gauss-Markov theorem</strong> — is the mathematical warranty that justifies
-          using OLS in the first place.
-        </p>
+        <div class="callout amber">
+          <div class="callout-icon"><i data-lucide="triangle-alert"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">Watch out</div>
+            Longitudinal data almost always violates the <strong>independence</strong> and <strong>identical distribution</strong> assumptions — measurements on the same person over time are correlated by design. This is why standard OLS is typically not appropriate for panel data, and why most of this course is dedicated to methods that relax these constraints.
+          </div>
+        </div>
 
         <h2>5. Solver</h2>
+
+        <!-- Margin note: MCMC preview -->
+        <aside class="margin-note purple" style="top: 131rem;">
+          <span class="note-label">Coming up</span>
+          The Bayesian chapter uses <strong>MCMC</strong> (Markov Chain Monte Carlo) as its solver — a stochastic algorithm that explores the full posterior distribution rather than finding a single point estimate.
+        </aside>
 
         <p>
           Think of everything we have built so far as a maze. The architecture and parameters
@@ -260,40 +305,40 @@
 
         <hr>
 
-        <h2>Summary: APCES Applied to OLS</h2>
+        <h2>Summary: APCES applied to OLS</h2>
 
         <div style="overflow-x:auto; margin-bottom:1rem;">
-          <table style="width:100%; border-collapse:collapse; font-family:sans-serif; font-size:0.8rem;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
             <thead>
-              <tr style="border-bottom:2px solid var(--border);">
-                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600; white-space:nowrap;">Component</th>
-                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600;">What it means</th>
-                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:600;">OLS</th>
+              <tr style="border-bottom:2px solid var(--border-strong);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700; white-space:nowrap;">Component</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">What it means</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">OLS</th>
               </tr>
             </thead>
             <tbody>
               <tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Architecture</td>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Architecture</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Assumptions about how the world generates data</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$, with $\epsilon \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$. Errors are independent, identically distributed, and homoscedastic.</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
-                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Parameters</td>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Parameters</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The unknown quantities to estimate</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\beta_0$ (baseline), $\beta_1$ (treatment effect), $\sigma^2$ (spread); estimated as $\hat{\beta}_0$, $\hat{\beta}_1$, $\hat{\sigma}^2$</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Criterion</td>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise RSS: $\sum(y_i - \hat{y}_i)^2$</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
-                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Estimator</td>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\hat{\beta} = (X^\top X)^{-1} X^\top y$. Under Gauss-Markov, this is the Best Linear Unbiased Estimator (BLUE).</td>
               </tr>
               <tr>
-                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap;">Solver</td>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Solver</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The computational procedure that finds the answer</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Analytical: normal equations $(X^\top X)\hat{\beta} = X^\top y$, solved directly. No iteration required.</td>
               </tr>
