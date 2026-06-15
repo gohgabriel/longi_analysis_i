@@ -169,14 +169,18 @@
     const notes = Array.from(notesCol.querySelectorAll('.margin-note[data-ref]'));
     if (!notes.length) return;
 
-    const colTop = notesCol.getBoundingClientRect().top + window.scrollY;
-    const minGap = 12; // px between notes
+    // #notes-col is position:absolute inside .card — its offsetTop is the card's padding-top
+    const cardTop = notesCol.offsetParent
+      ? notesCol.offsetParent.getBoundingClientRect().top + window.scrollY
+      : notesCol.getBoundingClientRect().top + window.scrollY;
+
+    const minGap = 16;
     let nextAvailable = 0;
 
     notes.forEach(note => {
       const anchor = document.getElementById(note.dataset.ref);
       if (!anchor) return;
-      const anchorTop = anchor.getBoundingClientRect().top + window.scrollY - colTop;
+      const anchorTop = anchor.getBoundingClientRect().top + window.scrollY - cardTop;
       const top = Math.max(anchorTop, nextAvailable);
       note.style.top = top + 'px';
       nextAvailable = top + note.offsetHeight + minGap;

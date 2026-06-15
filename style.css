@@ -149,34 +149,27 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2.5rem;
+  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
   width: 100%;
-  max-width: calc(var(--prose-w) + var(--note-w) + 3rem);
-  display: flex;
-  gap: 2.5rem;
-  align-items: flex-start;
+  max-width: calc(var(--prose-w) + var(--note-w) + 4rem);
   position: relative;
 }
 
-/* ── Prose column inside card ── */
-.prose, .objectives, .card > h1, .card > p.subtitle, .card > .chapter-nav {
-  min-width: 0;
-  flex: 1;
-  max-width: var(--prose-w);
-}
-
-/* ── Notes column inside card ── */
+/* ── Notes column — absolutely positioned inside card ── */
 #notes-col {
+  position: absolute;
+  top: 0;
+  right: 0;
   width: var(--note-w);
-  flex-shrink: 0;
-  position: relative;
-  align-self: stretch;
+  bottom: 0;
+  pointer-events: none;
 }
 
 .margin-note {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 1rem;
+  right: 1rem;
+  pointer-events: auto;
   font-size: 0.78rem;
   line-height: 1.55;
   color: var(--text-muted);
@@ -205,10 +198,7 @@ body {
 
 @media (max-width: 1100px) {
   #notes-col { display: none; }
-  .card {
-    max-width: var(--prose-w);
-    display: block;
-  }
+  .card { max-width: var(--prose-w); }
 }
 
 @media (max-width: 768px) {
