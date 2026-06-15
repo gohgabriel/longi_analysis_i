@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.2 Naïve OLS — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false}
+      ]
+    });">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch02_2_ols"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>2.2 Naïve OLS</h1>
+      <p class="subtitle">From frequentist inference to a real analysis</p>
+
+      <div class="objectives">
+        <div class="objectives-icon"><i data-lucide="target"></i></div>
+        <div class="objectives-body">
+          <div class="obj-label">Learning objectives</div>
+          <ul>
+            <li>Recognise the three between-groups designs that reduce to the same OLS equation</li>
+            <li>Apply APCES to naïve OLS and understand when its estimates are valid</li>
+            <li>Explain why the standard errors break down for truly longitudinal data</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── Margin notes ── -->
+      <aside class="margin-note" data-ref="ref-naive">
+        <span class="note-label">Terminology</span>
+        We call it <em>naïve</em> not as an insult. <em>Naïve</em> is a term used for when you are specifying a model that you know the assumptions are violated.
+      </aside>
+
+      <aside class="margin-note blue" data-ref="ref-cases12">
+        <span class="note-label">Cases 1 &amp; 2</span>
+        When the independence assumption genuinely holds — as it does when different children appear at each time point — the standard errors are also BLUE. P-values and confidence intervals can be trusted at face value.
+      </aside>
+
+      <aside class="margin-note amber" data-ref="ref-case3">
+        <span class="note-label">Case 3</span>
+        When the same children are measured twice but treated as independent, $\hat{\beta}_1$ remains BLUE, but the standard errors are not. OLS underestimates the true uncertainty — producing standard errors that are too small, p-values that are too low, and confidence intervals that are too narrow.
+      </aside>
+
+      <!-- ── Prose ── -->
+      <div class="prose">
+
+        <p>
+          In the previous section, we built up the frequentist toolkit — sampling distributions,
+          p-values, confidence intervals. Now it is time to put it to work. The simplest possible
+          analysis we can run on longitudinal data is also the most familiar: Ordinary Least
+          Squares regression.
+        </p>
+
+        <hr>
+
+        <h2>Three situations, one equation</h2>
+
+        <p>
+          <span id="ref-naive"></span>In program evaluation, the between-groups OLS design turns up in several guises.
+          You might have:
+        </p>
+
+        <ol>
+          <li>
+            <strong>Two separate cohorts at different time points</strong> — one group of children
+            measured before the intervention (t1), and a completely different group measured after
+            (t2). The time effect is genuinely between-subjects; no child appears in both groups.
+          </li>
+          <li>
+            <strong>Two groups at the same time point</strong> — both groups are measured at t2,
+            but one received the intervention and one did not. Here, group membership and time are
+            essentially interchangeable — you cannot separate the effect of the intervention from
+            the effect of time.
+          </li>
+          <li>
+            <strong>One group measured twice, treated as independent</strong> — the same children
+            are measured at t1 and t2, but for whatever reason the repeated structure is ignored
+            (e.g., you lost identifiers) and the two time points are treated as if they came from
+            different children. Mathematically, this looks identical to situation 1.
+          </li>
+        </ol>
+
+        <p>
+          Despite their surface differences, all three situations reduce to basically the same
+          architecture:
+        </p>
+
+        $$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$$
+
+        <p>
+          To keep things simple (for now), we use this as our catchall. If you are reading a study
+          that is using situation 2, just imagine that the group effect is the time effect.
+        </p>
+
+        <hr>
+
+        <h2>APCES applied to Naïve OLS</h2>
+
+        <p>
+          We have already walked through this model in detail in Section 1.2. Here we simply
+          collect the pieces in one place:
+        </p>
+
+        <div style="overflow-x:auto; margin-bottom:1rem;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-strong);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700; white-space:nowrap;">Component</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">What it means</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Naïve OLS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Architecture</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Assumptions about how the world generates data</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$, with $\epsilon \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$. Errors are independent, identically distributed, and homoscedastic.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Parameters</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The unknown quantities to estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\beta_0$ (baseline), $\beta_1$ (treatment effect), $\sigma^2$ (spread); estimated as $\hat{\beta}_0$, $\hat{\beta}_1$, $\hat{\sigma}^2$</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise RSS: $\sum(y_i - \hat{y}_i)^2$</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\hat{\beta} = (X^\top X)^{-1} X^\top y$. Under Gauss-Markov, this is the Best Linear Unbiased Estimator (BLUE) — provided the key assumptions hold.</td>
+              </tr>
+              <tr>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Solver</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The computational procedure that finds the answer</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Analytical: normal equations $(X^\top X)\hat{\beta} = X^\top y$, solved directly. No iteration required.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <span id="ref-cases12"></span>In program evaluation terms, $\hat{\beta}_1$ is the estimate we care most about —
+          it captures the average difference in developmental scores between the intervention and
+          control conditions. Under the Gauss-Markov theorem, this estimate is BLUE across all
+          three situations described above: it is the most precise unbiased estimate we can extract
+          from the data, given the model we have specified.
+        </p>
+
+        <p>
+          <span id="ref-case3"></span>
+        </p>
+
+        <hr>
+
+        <h2>The limitation</h2>
+
+        <p>
+          Naïve OLS works well when its assumptions are met. In certain cases (e.g. situations 1
+          and 2), you may not have any within-subjects data at all to work with to give you a
+          longitudinal estimate of a programme effect. In such cases, your OLS estimates of the
+          treatment effect (be it group or time) and its standard errors will still be BLUE and
+          valid. The only limitation is that such estimates <em>cannot</em> be compared to models
+          using true longitudinal designs (such as repeated measures ANOVA etc), because they are
+          fundamentally estimands of different underlying phenomena.
+        </p>
+
+        <p>
+          Naïve OLS mainly breaks down with situation 3 — when your data is truly longitudinal,
+          but you do not account for it. When the same child is measured at multiple time points,
+          their observations are not independent — knowing that a child scored high at t1 tells
+          you something about their score at t2. Children who start high tend to stay high;
+          children who start low tend to stay low. This within-person correlation is not noise
+          but actually signal, and naïve OLS has no way of accounting for it.
+        </p>
+
+        <p>
+          The consequence is not that the point estimate $\hat{\beta}_1$ is wrong. It may still be
+          a reasonable approximation of the average treatment effect (in fact, it is still BLUE).
+          The problem is that the standard errors are wrong — and if the standard errors are wrong,
+          so are the p-values, the confidence intervals, and any conclusions drawn from them.
+        </p>
+
+        <div class="callout amber">
+          <div class="callout-icon"><i data-lucide="triangle-alert"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">The core problem</div>
+            When OLS ignores within-person correlation, it treats correlated observations as if
+            they were independent — effectively overcounting the information in the data. The
+            result is standard errors that are too small, which makes effects look more certain
+            than they really are.
+          </div>
+        </div>
+
+        <p>
+          All longitudinal data analysis methods are, at their core, attempts to solve this
+          problem. In the next sections, we introduce two methods — Generalised Least Squares
+          and Multilevel Models — that explicitly model the within-person correlation structure,
+          and in doing so, fix what naïve OLS gets wrong with truly longitudinal data.
+        </p>
+
+      </div><!-- /.prose -->
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+</body>
+</html>

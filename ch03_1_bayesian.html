@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.1 Bayesian Inference — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
+  <style>
+    /* Page-specific overrides */
+    .ctrl label { min-width: 105px; }
+    .ctrl input[type=range].prior-slider { accent-color: var(--yellow); }
+    .ctrl input[type=range].data-slider  { accent-color: var(--blue); }
+    .ctrl-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
+
+    /* Coloured labels inside explainer and tab panels */
+    .lbl-like  { color: var(--blue);   font-weight: 600; }
+    .lbl-prior { color: var(--yellow); font-weight: 600; }
+    .lbl-post  { color: var(--green);  font-weight: 600; }
+  </style>
+</head>
+<body>
+  <script src="nav.js" data-page="ch03_1_bayesian"></script>
+  <div class="page-body">
+  <div class="card">
+
+  <h1>What is Bayesian inference?</h1>
+  <p class="subtitle">Combining prior knowledge with observed data</p>
+
+  <!-- Stage 1 notes (likelihood) -->
+  <aside class="margin-note blue" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Frequentist view</span>
+    Frequentists only extract the peak of the likelihood (the MLE) and discard the rest — because treating <em>θ</em> as a random variable is philosophically off-limits.
+  </aside>
+  <aside class="margin-note purple" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Philosophical note</span>
+    Bayesians reject sampling distributions entirely: with only one real experiment, hypothetical replications are metaphysical fiction.
+  </aside>
+  <aside class="margin-note green" data-stage="1" data-ref="ref-s1-anchor">
+    <span class="note-label">Special case</span>
+    For normal models with known variance, the sampling distribution and the likelihood are identical — frequentists and Bayesians literally look at the same curve.
+  </aside>
+
+  <!-- Stage 2 notes (prior) -->
+  <aside class="margin-note amber" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Uninformative prior</span>
+    Set <em>σ</em>₀ to a very large value (e.g. 20). The prior flattens out and the posterior converges on the likelihood — recovering the frequentist result.
+  </aside>
+  <aside class="margin-note blue" data-stage="2" data-ref="ref-s2-anchor">
+    <span class="note-label">Prior choices</span>
+    Common shapes: normal (symmetric belief), half-Cauchy (scale parameters that must be positive), or <em>t</em>-distribution (heavier tails = more scepticism about extreme values).
+  </aside>
+
+  <!-- Stage 3 notes (posterior) -->
+  <aside class="margin-note green" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">Precision weighting</span>
+    Posterior mean = (prior precision × prior mean + data precision × observed mean) / total precision. The sharper distribution wins.
+  </aside>
+  <aside class="margin-note purple" data-stage="3" data-ref="ref-s3-anchor">
+    <span class="note-label">HDI vs CI</span>
+    A 95% credible interval is a direct probability statement: <em>P(θ ∈ HDI | data) = 0.95</em>. A frequentist 95% CI makes no such claim about the parameter — only about the procedure.
+  </aside>
+
+  <div class="objectives">
+    <div class="objectives-icon"><i data-lucide="target"></i></div>
+    <div class="objectives-body">
+      <div class="obj-label">Learning objectives</div>
+      <ul>
+        <li>Understand why frequentist inference alone is insufficient when prior knowledge exists</li>
+        <li>Distinguish the likelihood, prior, and posterior distributions</li>
+        <li>Interpret Bayes&rsquo; theorem as a principled way to update beliefs with data</li>
+        <li>Understand how the strength of the prior relative to the data shapes the posterior</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prose" style="margin-bottom:1.5rem;">
+    <p>In the frequentist section, we saw that while <em>θ</em><sub>true</sub> is (assumed to be) <strong>fixed</strong>, we can still construct and approximate a sampling distribution around it to perform statistical inference. However, this is a purely data-driven approach — the plausible values of <em>θ</em> are derived entirely from your data.</p>
+    <p>In practice, we rarely arrive at a study in a state of total ignorance. Theory, previous findings, or simple common sense often give us a reasonable expectation of where <em>θ</em><sub>true</sub> might lie — or at least where it almost certainly does not. For instance, if we want to know the average height of all humans on Earth, the value can't possibly be less than 0cm, and it is very unlikely to be above 200cm. Thus, incorporating prior knowledge can meaningfully improve our statistical reasoning.</p>
+    <p>Bayesian inference allows us to incorporate such prior knowledge. To do this, Bayesians assert that <em>θ</em> is not fixed, but <strong>random</strong> - i.e., it is not a fixed value at all, but something that can take a range of <em>plausible</em> values. Rather than letting the data speak alone, it combines two sources of information:</p>
+    <ul>
+      <li><span class="lbl-like">The likelihood:</span> what does the data tell us about the plausible values of <em>θ</em><sub>true</sub>?</li>
+      <li><span class="lbl-prior">The prior:</span> from your prior knowledge, what are the plausible values of <em>θ</em><sub>true</sub>?</li>
+    </ul>
+    <p>The result is the <span class="lbl-post">posterior</span> — the updated plausible values of <em>θ</em> after the experiment. Formally:</p>
+  </div>
+
+  <!-- Bayes formula -->
+  <div class="formula-row" style="margin: 0.25rem 0 0.8rem;">
+    <span class="f-post">p(θ | data)</span>
+    <span class="f-op">∝</span>
+    <span class="f-like">p(data | θ)</span>
+    <span class="f-op">×</span>
+    <span class="f-prior">p(θ)</span>
+  </div>
+  <div class="formula-row" style="font-size:0.78rem; padding: 0.4rem 1rem; margin-top: -0.8rem; margin-bottom: 1.5rem;">
+    <span style="color:var(--green)">posterior</span>
+    <span style="color:var(--text-muted)">∝</span>
+    <span style="color:var(--blue)">likelihood (from data)</span>
+    <span style="color:var(--text-muted)">×</span>
+    <span style="color:var(--yellow)">prior (your belief)</span>
+  </div>
+
+  <!-- Stepper -->
+  <div class="stepper">
+    <button class="step active" id="step-1" onclick="setStage(1)"><span class="step-num">1</span>The<br>likelihood</button>
+    <button class="step"        id="step-2" onclick="setStage(2)"><span class="step-num">2</span>The<br>prior</button>
+    <button class="step"        id="step-3" onclick="setStage(3)"><span class="step-num">3</span>The<br>posterior</button>
+  </div>
+
+  <!-- Anchor spans for stage margin notes — sits after stepper so notes align to explainer -->
+  <span id="ref-s1-anchor"></span><span id="ref-s2-anchor"></span><span id="ref-s3-anchor"></span>
+
+  <!-- Explainer (JS-injected) -->
+  <div class="explainer" id="explainer"></div>
+
+  <!-- Controls -->
+  <div class="section-label" style="margin-top:1.5rem;">Prior (your belief before data)</div>
+  <div class="controls" id="prior-controls">
+    <div class="ctrl">
+      <label>Prior mean θ₀</label>
+      <input type="range" class="prior-slider" min="-5" max="5" step="0.1" value="0" id="prior-mu">
+      <span class="val" id="prior-mu-out">0</span>
+    </div>
+    <div class="ctrl">
+      <label>Prior std σ₀</label>
+      <input type="range" class="prior-slider" min="0.3" max="20" step="0.1" value="2" id="prior-sigma">
+      <span class="val" id="prior-sigma-out">2.0</span>
+    </div>
+  </div>
+
+  <div class="section-label">Data (observed)</div>
+  <div class="controls" id="data-controls">
+    <div class="ctrl">
+      <label>Observed θ̂</label>
+      <input type="range" class="data-slider" min="-5" max="5" step="0.1" value="2" id="data-mean">
+      <span class="val" id="data-mean-out">2.0</span>
+    </div>
+    <div class="ctrl">
+      <label>Std error (σ/√n)</label>
+      <input type="range" class="data-slider" min="0.3" max="3" step="0.1" value="1" id="data-se">
+      <span class="val" id="data-se-out">1.0</span>
+    </div>
+  </div>
+
+  <div class="section-label">Display</div>
+  <div class="toggle-row">
+    <button class="tog active-yellow" id="btn-prior"  onclick="toggleLayer('prior')">prior</button>
+    <button class="tog active-blue"   id="btn-like"   onclick="toggleLayer('like')">likelihood</button>
+    <button class="tog active-purple" id="btn-hdi"    onclick="toggleHDI()">95% HDI</button>
+    <button class="tog active-green"  id="btn-point"  onclick="cyclePoint()">MAP = E[θ]</button>
+    <button class="tog"               id="btn-tail"   onclick="cycleTail()">P(θ = 0)</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label" id="tail-stat-label">Posterior tail prob</div>
+      <div class="stat-value" id="tail-val">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Posterior mean E[θ]</div>
+      <div class="stat-value" id="post-mean">—</div>
+    </div>
+    <div class="stat" id="hdi-stat">
+      <div class="stat-label">95% HDI</div>
+      <div class="stat-value small" id="hdi-val">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Posterior std</div>
+      <div class="stat-value" id="post-std">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Prior weight</div>
+      <div class="stat-value" id="prior-weight">—</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span id="leg-prior"><span class="dot" style="background:#CA8A04;"></span>Prior</span>
+    <span id="leg-like"><span class="dot" style="background:#378ADD;"></span>Likelihood</span>
+    <span><span class="dot" style="background:#1D9E75;"></span>Posterior</span>
+    <span id="leg-hdi" style="display:none;"><span class="dot" style="background:#8B5CF6;"></span>95% HDI</span>
+    <span id="leg-tail" style="display:none;"><span class="dot" style="background:#E24B4A;"></span>Posterior tail</span>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="chart" role="img" aria-label="Bayesian prior, likelihood, and posterior distributions"></canvas>
+  </div>
+
+  <div class="footer">
+    With a <strong>normal prior</strong> N(θ₀, σ₀²) and <strong>normal likelihood</strong> N(θ̂, σ²), the posterior is also normal. The posterior mean is a precision-weighted average of the prior mean and data mean — the sharper distribution pulls the posterior toward it. The 95% HDI is the shortest interval containing 95% of the posterior probability.
+  </div>
+
+  </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+<script>
+// ── Math helpers ──────────────────────────────────────────────────────────────
+function normalPDF(x, mu, sigma) {
+  return Math.exp(-0.5*((x-mu)/sigma)**2) / (sigma*Math.sqrt(2*Math.PI));
+}
+function erf(x) {
+  const sign = x >= 0 ? 1 : -1; x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t = 1/(1+p*x);
+  return sign*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));
+}
+function normalCDF(x, mu, sigma) { return 0.5*(1+erf((x-mu)/(sigma*Math.sqrt(2)))); }
+function fmt(v) { return Math.abs(v-Math.round(v)) < 0.001 ? Math.round(v).toString() : v.toFixed(2); }
+
+// Inverse normal CDF (Beasley-Springer-Moro approximation)
+function normalQuantile(p, mu, sigma) {
+  const a = [0,-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b = [0,-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c = [-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d = [7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pLow = 0.02425, pHigh = 1 - pLow;
+  let q, r;
+  if (p < pLow) {
+    q = Math.sqrt(-2*Math.log(p));
+    q = (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  } else if (p <= pHigh) {
+    q = p - 0.5; r = q*q;
+    q = (((((a[1]*r+a[2])*r+a[3])*r+a[4])*r+a[5])*r+a[6])*q / (((((b[1]*r+b[2])*r+b[3])*r+b[4])*r+b[5])*r+1);
+  } else {
+    q = Math.sqrt(-2*Math.log(1-p));
+    q = -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }
+  return mu + sigma * q;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let priorMu = 0, priorSigma = 2;
+let dataMean = 2, dataSE = 1;
+let showPrior = true, showLike = true, showHDI = true;
+let pointMode = 'on';
+let tailMode = 'none';
+
+// ── Posterior (conjugate normal-normal) ───────────────────────────────────────
+function posterior() {
+  const precPrior = 1 / (priorSigma * priorSigma);
+  const precLike  = 1 / (dataSE * dataSE);
+  const precPost  = precPrior + precLike;
+  const postSigma = Math.sqrt(1 / precPost);
+  const postMu    = (precPrior * priorMu + precLike * dataMean) / precPost;
+  const priorW    = precPrior / precPost;
+  return { postMu, postSigma, priorW };
+}
+
+// ── Canvas ────────────────────────────────────────────────────────────────────
+const X_MIN = -10, X_MAX = 10, STEPS = 500;
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const COL = {
+  blue:       '#378ADD', blueFill:   isDark ? 'rgba(55,138,221,0.22)'  : 'rgba(55,138,221,0.12)',
+  green:      '#1D9E75', greenFill:  isDark ? 'rgba(29,158,117,0.45)'  : 'rgba(29,158,117,0.25)',
+  purple:     '#8B5CF6', purpleFill: isDark ? 'rgba(139,92,246,0.35)'  : 'rgba(139,92,246,0.2)',
+  yellow:     '#CA8A04', yellowFill: isDark ? 'rgba(202,138,4,0.30)'   : 'rgba(202,138,4,0.15)',
+  red:        '#E24B4A', redFill:    isDark ? 'rgba(226,75,74,0.35)'   : 'rgba(226,75,74,0.20)',
+  grid:       isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+  axis:       isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)',
+  tick:       isDark ? '#9e9c96' : '#6b6a66',
+  pillBg:     isDark ? 'rgba(34,34,32,0.95)'    : 'rgba(255,255,255,0.95)',
+};
+
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+const PAD = { top: 36, right: 16, bottom: 36, left: 16 };
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width  = rect.width  + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(dpr, dpr);
+  draw();
+}
+
+function cw() { return canvas.width  / (window.devicePixelRatio||1); }
+function ch() { return canvas.height / (window.devicePixelRatio||1); }
+function plotW() { return cw() - PAD.left - PAD.right; }
+function plotH() { return ch() - PAD.top  - PAD.bottom; }
+function xToP(x) { return PAD.left + (x - X_MIN) / (X_MAX - X_MIN) * plotW(); }
+function yToP(y, yMax) { return PAD.top + (1 - y / yMax) * plotH(); }
+
+function draw() {
+  const W = cw(), H = ch(), PW = plotW(), PH = plotH();
+  const { postMu, postSigma } = posterior();
+
+  const peaks = [normalPDF(postMu, postMu, postSigma)];
+  if (showPrior) peaks.push(normalPDF(priorMu, priorMu, priorSigma));
+  if (showLike)  peaks.push(normalPDF(dataMean, dataMean, dataSE));
+  const yMax = Math.max(...peaks) * 1.25;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.save(); ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+  for (let v = X_MIN; v <= X_MAX; v += 2) {
+    const xp = xToP(v);
+    ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top+PH); ctx.stroke();
+  }
+  ctx.restore();
+
+  // X axis + ticks
+  const axisY = PAD.top + PH;
+  ctx.save(); ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD.left, axisY); ctx.lineTo(PAD.left+PW, axisY); ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.font = '11px sans-serif'; ctx.fillStyle = COL.tick;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let v = X_MIN; v <= X_MAX; v += 2) ctx.fillText(v, xToP(v), axisY + 4);
+  ctx.font = 'italic 12px Georgia, serif';
+  ctx.fillText('θ', PAD.left + PW/2, axisY + 18);
+  ctx.restore();
+
+  function drawCurve(mu, sigma, fillColor, strokeColor, strokeW) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(xToP(X_MIN), yToP(0, yMax));
+    for (let i = 0; i <= STEPS; i++) {
+      const x = X_MIN + (X_MAX-X_MIN)*i/STEPS;
+      ctx.lineTo(xToP(x), yToP(normalPDF(x, mu, sigma), yMax));
+    }
+    ctx.lineTo(xToP(X_MAX), yToP(0, yMax));
+    ctx.closePath();
+    ctx.fillStyle = fillColor; ctx.fill();
+    ctx.beginPath();
+    for (let i = 0; i <= STEPS; i++) {
+      const x = X_MIN + (X_MAX-X_MIN)*i/STEPS;
+      const yp = yToP(normalPDF(x, mu, sigma), yMax);
+      i === 0 ? ctx.moveTo(xToP(x), yp) : ctx.lineTo(xToP(x), yp);
+    }
+    ctx.strokeStyle = strokeColor; ctx.lineWidth = strokeW; ctx.stroke();
+    ctx.restore();
+  }
+
+  if (showPrior) drawCurve(priorMu, priorSigma, COL.yellowFill, COL.yellow, 1.5);
+  if (showLike)  drawCurve(dataMean, dataSE, COL.blueFill, COL.blue, 1.5);
+
+  // HDI shading
+  if (showHDI) {
+    const hdiLo = normalQuantile(0.025, postMu, postSigma);
+    const hdiHi = normalQuantile(0.975, postMu, postSigma);
+    const lo = Math.max(X_MIN, hdiLo), hi = Math.min(X_MAX, hdiHi);
+    const steps = Math.ceil(STEPS*(hi-lo)/(X_MAX-X_MIN));
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(xToP(lo), yToP(0, yMax));
+    for (let i = 0; i <= steps; i++) {
+      const x = lo + (hi-lo)*i/steps;
+      ctx.lineTo(xToP(x), yToP(normalPDF(x, postMu, postSigma), yMax));
+    }
+    ctx.lineTo(xToP(hi), yToP(0, yMax));
+    ctx.closePath(); ctx.fillStyle = COL.purpleFill; ctx.fill(); ctx.restore();
+  }
+
+  drawCurve(postMu, postSigma, 'transparent', COL.green, 2.5);
+
+  // Tail shading
+  if (tailMode !== 'none') {
+    const stripeCanvas = document.createElement('canvas');
+    stripeCanvas.width = 8; stripeCanvas.height = 8;
+    const sc = stripeCanvas.getContext('2d');
+    sc.strokeStyle = COL.red; sc.lineWidth = 1.5;
+    sc.beginPath(); sc.moveTo(0, 8); sc.lineTo(8, 0); sc.stroke();
+    sc.beginPath(); sc.moveTo(-4, 8); sc.lineTo(4, 0); sc.stroke();
+    sc.beginPath(); sc.moveTo(4, 8); sc.lineTo(12, 0); sc.stroke();
+    const stripePattern = ctx.createPattern(stripeCanvas, 'repeat');
+
+    function shadeTail(lo, hi) {
+      const clo = Math.max(X_MIN, lo), chi = Math.min(X_MAX, hi);
+      if (clo >= chi) return;
+      const s = Math.ceil(STEPS*(chi-clo)/(X_MAX-X_MIN));
+      ctx.save(); ctx.beginPath();
+      ctx.moveTo(xToP(clo), yToP(0, yMax));
+      for (let i = 0; i <= s; i++) {
+        const x = clo + (chi-clo)*i/s;
+        ctx.lineTo(xToP(x), yToP(normalPDF(x, postMu, postSigma), yMax));
+      }
+      ctx.lineTo(xToP(chi), yToP(0, yMax));
+      ctx.closePath(); ctx.fillStyle = stripePattern; ctx.fill(); ctx.restore();
+    }
+    if (tailMode === 'lt') shadeTail(X_MIN, 0);
+    else if (tailMode === 'gt') shadeTail(0, X_MAX);
+    else {
+      const mirror = 2 * postMu;
+      shadeTail(X_MIN, Math.min(0, mirror));
+      shadeTail(Math.max(0, mirror), X_MAX);
+    }
+  }
+
+  // Vlines with pill labels
+  function vline(val, dash, color, label, slot) {
+    const xp = xToP(val);
+    if (xp < PAD.left - 1 || xp > PAD.left + PW + 1) return;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top+PH);
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '11px sans-serif';
+    const tw = ctx.measureText(label).width;
+    const px = 5, bh = 18, bw = tw + px*2;
+    const ly = 4 + (slot||0) * 26;
+    let lx = xp - bw/2;
+    lx = Math.max(PAD.left, Math.min(PAD.left+PW-bw, lx));
+    ctx.fillStyle = COL.pillBg; ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(lx, ly, bw, bh, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, lx+px, ly+bh/2);
+    ctx.restore();
+  }
+
+  if (showHDI) {
+    const hdiLo = normalQuantile(0.025, postMu, postSigma);
+    const hdiHi = normalQuantile(0.975, postMu, postSigma);
+    vline(hdiLo, [4,3], COL.purple, 'HDI '+hdiLo.toFixed(2), 1);
+    vline(hdiHi, [4,3], COL.purple, 'HDI '+hdiHi.toFixed(2), 1);
+  }
+  if (pointMode === 'on') vline(postMu, [], COL.green, 'MAP = E[θ] = ' + postMu.toFixed(2), 0);
+  if (tailMode !== 'none') {
+    vline(0, [3,3], COL.red, 'θ = 0', 2);
+    if (tailMode === 'two') vline(2 * postMu, [3,3], COL.red, 'θ = ' + (2*postMu).toFixed(2), 2);
+  }
+}
+
+// ── Stats update ───────────────────────────────────────────────────────────────
+function update() {
+  const { postMu, postSigma, priorW } = posterior();
+  draw();
+  const hdiLo = normalQuantile(0.025, postMu, postSigma);
+  const hdiHi = normalQuantile(0.975, postMu, postSigma);
+  document.getElementById('post-mean').textContent    = postMu.toFixed(3);
+  document.getElementById('post-std').textContent     = postSigma.toFixed(3);
+  document.getElementById('hdi-val').textContent      = '['+hdiLo.toFixed(2)+', '+hdiHi.toFixed(2)+']';
+  document.getElementById('prior-weight').textContent = (priorW*100).toFixed(1)+'%';
+  if (tailMode !== 'none') {
+    const pLt = normalCDF(0, postMu, postSigma);
+    const pGt = 1 - pLt;
+    let tailP, tailLabel;
+    if (tailMode === 'lt')      { tailP = pLt;                    tailLabel = 'P(θ ≤ 0 | data)'; }
+    else if (tailMode === 'gt') { tailP = pGt;                    tailLabel = 'P(θ ≥ 0 | data)'; }
+    else                        { tailP = 2 * Math.min(pLt, pGt); tailLabel = 'P(|θ| from 0)'; }
+    document.getElementById('tail-stat-label').textContent = tailLabel;
+    document.getElementById('tail-val').textContent        = tailP.toFixed(3);
+  }
+}
+
+// ── Toggle helpers ─────────────────────────────────────────────────────────────
+function toggleLayer(which) {
+  if (which === 'prior') {
+    showPrior = !showPrior;
+    document.getElementById('btn-prior').className = 'tog' + (showPrior ? ' active-yellow' : '');
+    document.getElementById('leg-prior').style.display = showPrior ? '' : 'none';
+  } else {
+    showLike = !showLike;
+    document.getElementById('btn-like').className = 'tog' + (showLike ? ' active-blue' : '');
+    document.getElementById('leg-like').style.display = showLike ? '' : 'none';
+  }
+  update();
+}
+
+function toggleHDI() {
+  showHDI = !showHDI;
+  document.getElementById('btn-hdi').className = 'tog' + (showHDI ? ' active-purple' : '');
+  document.getElementById('leg-hdi').style.display = showHDI ? '' : 'none';
+  update();
+}
+
+function cyclePoint() {
+  pointMode = pointMode === 'on' ? 'none' : 'on';
+  document.getElementById('btn-point').className = 'tog' + (pointMode === 'on' ? ' active-green' : '');
+  update();
+}
+
+function cycleTail() {
+  const cycle = ['none', 'lt', 'gt', 'two'];
+  const labels = { none: 'P(θ = 0)', lt: 'P(θ ≤ 0 | data)', gt: 'P(θ ≥ 0 | data)', two: 'P(|θ| from 0)' };
+  tailMode = cycle[(cycle.indexOf(tailMode)+1) % cycle.length];
+  document.getElementById('btn-tail').textContent = labels[tailMode];
+  document.getElementById('btn-tail').className   = 'tog' + (tailMode !== 'none' ? ' active-red' : '');
+  document.getElementById('leg-tail').style.display = tailMode !== 'none' ? '' : 'none';
+  update();
+}
+
+// ── Per-stage copy ────────────────────────────────────────────────────────────
+const STAGE_TEXT = {
+  1: {
+    h: "1 &middot; The likelihood",
+    body: "The likelihood describes how plausible each candidate value of <em>&theta;</em> is, given the data you observed. For every possible <em>&theta;</em>, it asks: how probable was the data I actually collected, if that <em>&theta;</em> were the true value?<br><br>For frequentists, the hard part about the likelihood is that <em>&theta;</em><sub>true</sub> is assumed to be fixed, so reasoning about &ldquo;candidate values of <em>&theta;</em><sub>true</sub>&rdquo; is illogical. Conventionally, frequentists calculate only the point estimate &mdash; the maximum-likelihood estimate <em>&theta;</em><sub>MLE</sub> &mdash; and discard the remaining candidate values. They then construct a sampling distribution around this <em>&theta;</em><sub>MLE</sub> to do their statistical reasoning.<br><br>Because Bayesians assume that <em>&theta;</em><sub>true</sub> itself is a <strong>random variable</strong>, they are instead able to work with the likelihood&rsquo;s full range of candidate values directly. This difference is more <em>philosophical</em> than mathematical. In this demo&rsquo;s special case (a normal distribution with known variance), the sampling distribution centred at <em>&theta;&#770;</em> is identical to the likelihood. Frequentists and Bayesians can thus be seen as interpreting the same object through different philosophical lenses."
+  },
+  2: {
+    h: "2 &middot; The prior",
+    body: "The prior encodes your belief about <em>&theta;</em> before seeing any data. It is a full probability distribution: you assign higher probability to values of <em>&theta;</em> you consider more plausible, and lower (or zero) probability to those you consider unlikely.<br><br>In practice, Bayesians typically specify a distributional shape for the prior &mdash; such as a normal, <em>t</em>-distribution, or half-Cauchy &mdash; and choose its parameters to reflect their beliefs. A <strong>wide prior</strong> spreads probability across a broad range of <em>&theta;</em> values, expressing near-ignorance. A <strong>narrow prior</strong> means you are very certain <em>&theta;</em> lies in a particular range.<br><br>As you will see in the demo below, when the prior is very wide it contributes almost nothing and the posterior converges on the likelihood alone &mdash; recovering the frequentist result almost exactly. The frequentist framework can therefore be treated as a special case of the Bayesian framework with a flat (uninformative) prior.",
+    key: "Try setting the prior std &sigma;&#8320; to a very large value (e.g. 20). The posterior will converge almost entirely on the likelihood &mdash; recovering the frequentist result."
+  },
+  3: {
+    h: "3 &middot; The posterior",
+    body: "The posterior is the result of combining the two: the likelihood re-weights the prior, pulling it toward the values of <em>&theta;</em> supported by the data. It is your updated belief about <em>&theta;</em> after the experiment.<br><br>Unlike a frequentist analysis &mdash; which gives you a point estimate and a p-value &mdash; the posterior is a much richer object. From it you can extract:<br><ul style=\"margin: 0.5rem 0 0.5rem 1.2rem; line-height:1.7;\"><li><strong>Point estimate:</strong> the posterior mean E[<em>&theta;</em>], or the MAP (Maximum A Posteriori) &mdash; the single peak of the posterior.</li><li><strong>Credible intervals:</strong> a direct probability statement that <em>&theta;</em> lies within a given range. The 95% HDI (Highest Density Interval) is the shortest interval containing 95% of the posterior probability.</li><li><strong>Posterior tail probability:</strong> the probability that <em>&theta;</em> exceeds any threshold of interest &mdash; the Bayesian analogue of a p-value.</li></ul>",
+    key: "The posterior mean is a <strong>precision-weighted average</strong> of the prior mean and the observed &theta;&#770;. The sharper (more certain) distribution pulls the posterior toward it."
+  }
+};
+
+let stage = 1;
+
+function refreshExplainer() {
+  const t = STAGE_TEXT[stage];
+  let html = "<h3>" + t.h + "</h3><div>" + t.body + "</div>";
+  if (t.key) html += "<span class=\"key\">" + t.key + "</span>";
+  document.getElementById("explainer").innerHTML = html;
+}
+
+function setStage(s) {
+  stage = s;
+  [1,2,3].forEach(i => document.getElementById("step-"+i).classList.toggle("active", i === s));
+  refreshExplainer();
+  if (window.switchStageNotes) window.switchStageNotes(s);
+}
+
+// ── Sliders ────────────────────────────────────────────────────────────────────
+document.getElementById('prior-mu').addEventListener('input', e => {
+  priorMu = parseFloat(e.target.value);
+  document.getElementById('prior-mu-out').textContent = fmt(priorMu);
+  update();
+});
+document.getElementById('prior-sigma').addEventListener('input', e => {
+  priorSigma = parseFloat(e.target.value);
+  document.getElementById('prior-sigma-out').textContent = fmt(priorSigma);
+  update();
+});
+document.getElementById('data-mean').addEventListener('input', e => {
+  dataMean = parseFloat(e.target.value);
+  document.getElementById('data-mean-out').textContent = fmt(dataMean);
+  update();
+});
+document.getElementById('data-se').addEventListener('input', e => {
+  dataSE = parseFloat(e.target.value);
+  document.getElementById('data-se-out').textContent = fmt(dataSE);
+  update();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+setStage(1);
+resize();
+// nav.js builds #notes-col asynchronously (after toc.json fetch).
+// Re-run stage switch once it's ready so notes are shown and positioned correctly.
+setTimeout(() => { if (window.switchStageNotes) window.switchStageNotes(stage); }, 600);
+</script>
+</body>
+</html>
