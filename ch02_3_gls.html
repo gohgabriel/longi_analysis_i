@@ -97,18 +97,18 @@
         <p>
           In the previous section, we learnt that naïve OLS gives us a reasonable estimate of the
           treatment effect — but when the same children are measured at multiple time points, its
-          standard errors cannot be trusted. The problem is not that OLS is doing something wrong,
-          exactly. It is that OLS is making an assumption — that all observations are independent
-          of each other — that longitudinal data structurally violates. And when that assumption
-          breaks, the uncertainty estimates break with it.
+          standard errors cannot be trusted. The problem is that OLS is making an assumption (
+          that all observations are independent of each other) that longitudinal data structurally violates.
+          And when that assumption breaks, the uncertainty estimates break with it.
         </p>
 
         <p>
-          <span id="ref-naive"></span>Generalised Least Squares, or GLS, is the minimal fix. It keeps everything about OLS
+          <span id="ref-naive"></span>Generalised Least Squares, or GLS, is big brother to OLS.
+          It keeps everything about OLS
           that was working — the same equation, the same criterion, the same basic logic — and
           changes exactly one thing: the assumption about how errors behave. That single change is
           enough to restore honest standard errors, and to give us confidence intervals and
-          p-values we can actually trust.
+          p-values we can actually trust. Sometimes, this is called a minimal fix.
         </p>
 
         <hr>
@@ -215,7 +215,7 @@
         </iframe>
 
         <p>
-          Choosing between these structures is itself a modelling decision, and it matters. If
+          Choosing between these structures is itself a modelling decision made by the analyst. If
           you specify a covariance structure that is too simple — say, compound symmetry when the
           true correlations decay over time — your standard errors will still be somewhat off,
           just less dramatically than if you had ignored $\Sigma$ entirely. Most software will
