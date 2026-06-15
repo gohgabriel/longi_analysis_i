@@ -1,0 +1,9 @@
+dplyr
+tidyr
+ggplot2
+kableExtra
+Rcpp
+brms
+bayesplot
+posterior
+broom.mixed

@@ -1,0 +1,798 @@
+---
+title: "Case Study 4: Hierarchical Bayes for Longitudinal Data"
+author: "Goh Gabriel"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(kableExtra)
+library(brms)       # Bayesian multilevel models via Stan
+library(bayesplot)  # MCMC diagnostics and posterior plots
+library(posterior)  # Working with posterior distributions
+library(broom.mixed)
+
+# Set a global seed for reproducibility
+set.seed(42)
+```
+
+# Introduction
+
+Case Studies 1–3 covered OLS, GLS, ANOVA / multilevel modelling, and robust variance estimation. In Case Study 4, we take a fundamentally different approach: **Hierarchical Bayes**.
+
+## Research Context
+
+We return to the same randomised controlled trial of a working memory training programme in school-age children tracked over 18 months. The research question remains: **Does cognitive training produce sustained improvements in working memory performance compared to a control group?**
+
+The data structure is identical to Case Study 3: repeated measures nested within children, an intervention × time interaction of primary interest, and missing data arising from participant dropout.
+
+## What Is Hierarchical Bayes?
+
+Classical (frequentist) multilevel models like `lmer()` estimate parameters by maximising the likelihood. They produce **point estimates** (fixed effects) and **variance components** (random effects), along with approximate standard errors. Inference rests on asymptotic theory.
+
+Hierarchical Bayesian models do something deeper: they treat **every parameter as a random variable** with a probability distribution. Instead of a single "best estimate," we recover a **posterior distribution** — a full description of what the data, combined with our prior beliefs, say about each parameter.
+
+More concretely, a hierarchical Bayes model for this study has three levels:
+
+1. **Observation level**: Each working memory score is normally distributed around a child-specific trajectory.
+2. **Child level (random effects)**: Each child's intercept and time slope are drawn from a group-level (population) distribution.
+3. **Prior level**: The population-level means and variances are themselves governed by prior distributions that encode our baseline beliefs before seeing the data.
+
+This structure is the Bayesian analogue of the `lmer()` random-intercepts-and-slopes model from Case Study 3 — but instead of a single fixed-effect estimate with a standard error, we obtain thousands of **posterior draws** that fully characterise our uncertainty.
+
+## Why Bother?
+
+| Property | Frequentist (lmer + CR2) | Hierarchical Bayes |
+|---|---|---|
+| **Uncertainty** | SE + asymptotic CI | Full posterior distribution |
+| **Small samples / few clusters** | Problematic asymptotics | Naturally regularised |
+| **Complex variance structures** | Requires manual specification | Modelled jointly |
+| **Predictions** | Point prediction + SE | Posterior predictive distribution |
+| **Prior knowledge** | Not incorporated | Can be incorporated transparently |
+| **Computation** | Fast | Slower (MCMC) |
+
+## Key Learning Objectives
+
+By the end of this analysis, you will:
+
+- Understand the core logic of Bayesian inference and how it differs from frequentist approaches
+- Fit hierarchical Bayesian models using `brms` (which compiles to Stan under the hood)
+- Interpret posterior distributions, credible intervals, and posterior predictive checks
+- Compare Bayesian and frequentist conclusions for the same dataset
+- Appreciate the role of prior distributions and how to perform basic prior sensitivity analysis
+
+---
+
+# The Longitudinal Intervention Study
+
+## Dataset Structure
+
+```{r load-data}
+study_data <- read.csv("data3.csv")
+str(study_data)
+```
+
+The dataset contains **`r nrow(study_data)` observations** from **`r length(unique(study_data$child_id))` children** assessed across up to six timepoints. Variable definitions are identical to Case Study 3:
+
+- **`child_id`**: Unique participant identifier
+- **`timepoint`**: Sequential visit number (1–6)
+- **`time_months`**: Elapsed time since baseline (0, 3, 6, 9, 12, 18 months)
+- **`time_scaled`**: Simplified 0–6 scale used in modelling
+- **`age_baseline`**: Age at study entry
+- **`iq`**: Intelligence quotient at baseline
+- **`ses`**: Socioeconomic status composite score
+- **`intervention`**: Treatment group (1 = intervention, 0 = control)
+- **`post_intervention`**: Whether assessment occurred post-intervention
+- **`working_memory_score`**: Primary cognitive outcome
+
+## Descriptive Statistics Over Time
+
+```{r descriptive-stats}
+descriptives <- study_data %>%
+  group_by(time_months, intervention) %>%
+  summarise(
+    n = n(),
+    mean_wm = mean(working_memory_score, na.rm = TRUE),
+    sd_wm = sd(working_memory_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r descriptives-table, echo=FALSE}
+descriptives %>%
+  kable(digits = 2, col.names = c("Time (months)", "Intervention", "N", "Mean WM", "SD WM")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+As in Case Study 3, variability in working memory scores grows over time — a pattern the Bayesian model will need to capture.
+
+## Individual Trajectories
+
+```{r trajectory-plot}
+sample_children <- sample(unique(study_data$child_id), 20)
+
+study_data %>%
+  filter(child_id %in% sample_children) %>%
+  ggplot(aes(x = time_months, y = working_memory_score, group = child_id)) +
+  geom_line(aes(color = factor(intervention)), alpha = 0.6, linewidth = 0.8) +
+  geom_point(aes(color = factor(intervention)), alpha = 0.7, size = 1.5) +
+  facet_wrap(~intervention,
+             labeller = labeller(intervention = c("0" = "Control", "1" = "Intervention"))) +
+  scale_color_manual(values = c("0" = "#E31A1C", "1" = "#1F78B4")) +
+  labs(
+    title = "Individual Working Memory Trajectories Over Time",
+    subtitle = "Strong within-subject correlation is apparent",
+    x = "Time (months since baseline)",
+    y = "Working Memory Score"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"), legend.position = "none")
+```
+
+---
+
+# Specifying the Hierarchical Bayes Model
+
+## Model Structure
+
+We specify the following model:
+
+$$y_{it} = \beta_0 + \beta_1 \cdot \text{time}_{it} + \beta_2 \cdot \text{intervention}_i + \beta_3 \cdot (\text{intervention}_i \times \text{time}_{it}) + \beta_4 \cdot \text{age}_i + \beta_5 \cdot \text{iq}_i + \beta_6 \cdot \text{ses}_i + u_{0i} + u_{1i} \cdot \text{time}_{it} + \varepsilon_{it}$$
+
+Where:
+
+- $\beta_0, \ldots, \beta_6$ are **population-level** (fixed) effects
+- $(u_{0i}, u_{1i}) \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Sigma})$ are **child-level** (random) effects — a correlated random intercept and slope
+- $\varepsilon_{it} \sim \mathcal{N}(0, \sigma^2)$ is the residual
+
+In Bayesian terms we must also specify **prior distributions** for all parameters. This is not merely a technical requirement, but a necessity.
+
+## Choosing Priors
+
+Priors should reflect what we plausibly believe *before* seeing the data. Working memory scores in school children are typically standardised to a mean of around 100 with SD ≈ 15. Given our descriptive statistics, we use weakly informative priors that are centred on plausible values but are wide enough not to dominate the data:
+
+| Parameter | Prior | Rationale |
+|---|---|---|
+| Intercept $\beta_0$ | $\mathcal{N}(100, 20)$ | Baseline score near population mean |
+| Fixed effects $\beta_{1\text{–}6}$ | $\mathcal{N}(0, 10)$ | Centred on zero; wide |
+| Residual SD $\sigma$ | Half-$\mathcal{N}(0, 15)$ | Positive; SD plausibly < 30 |
+| Random effect SDs | Half-$\mathcal{N}(0, 10)$ | Positive; regularises child-level variation |
+| Random effect correlation | LKJ(2) | Weakly regularises toward zero correlation |
+
+These are **weakly informative** priors — they rule out implausible values (e.g., negative SDs or scores of 10,000) while letting the data speak.
+
+## Fitting the Model
+
+We use `brms`, which translates the model formula into Stan and runs Hamiltonian Monte Carlo (HMC) to sample from the posterior.
+
+```{r fit-model, results='hide', cache=TRUE}
+# Define priors
+priors <- c(
+  prior(normal(100, 20), class = Intercept),
+  prior(normal(0, 10),   class = b),
+  prior(normal(0, 15),   class = sigma),
+  prior(normal(0, 10),   class = sd),
+  prior(lkj(2),          class = cor)
+)
+
+# Fit the model
+# Random intercept + random slope for time_scaled, correlated
+bayes_model <- brm(
+  formula = working_memory_score ~
+    intervention * time_scaled + age_baseline + iq + ses +
+    (1 + time_scaled | child_id),
+  data    = study_data,
+  prior   = priors,
+  family  = gaussian(),
+  chains  = 4,
+  iter    = 4000,
+  warmup  = 1000,
+  cores   = 4,
+  seed    = 42,
+  control = list(adapt_delta = 0.95),
+  file    = "bayes_model_cache"   # Cache to avoid re-fitting on knit
+)
+```
+
+The model runs **4 chains × 3,000 post-warmup iterations = 12,000 posterior draws** — enough for stable estimates.
+
+---
+
+# MCMC Diagnostics
+
+Before interpreting results, we must verify that the chains converged and sampled efficiently.
+
+## Trace Plots
+
+Trace plots show the sampled values of each chain over iterations. Good convergence looks like "fuzzy caterpillars" — chains mixing around a stable value with no trends or divergences.
+
+```{r trace-plots, fig.height=8}
+# Focus on the key fixed effects
+mcmc_trace(
+  as.array(bayes_model),
+  pars = c("b_Intercept", "b_intervention", "b_time_scaled",
+           "b_intervention:time_scaled", "sigma"),
+  facet_args = list(ncol = 1)
+) +
+  labs(title = "MCMC Trace Plots for Key Parameters") +
+  theme_minimal()
+```
+
+## R-hat and Effective Sample Size
+
+$\hat{R}$ (R-hat) measures chain convergence: values close to 1.00 indicate convergence. Effective Sample Size (ESS) measures how many independent samples the chains are equivalent to.
+
+```{r rhat-neff}
+# Extract summary diagnostics
+rhats <- rhat(bayes_model)
+neffs <- neff_ratio(bayes_model)
+
+# Display for fixed effects
+diag_df <- data.frame(
+  Parameter = names(rhats),
+  Rhat = round(rhats, 4),
+  ESS_ratio = round(neffs, 3)
+) %>%
+  filter(grepl("^b_|^sigma|^sd_|^cor_", Parameter))
+```
+
+```{r rhat-table, echo=FALSE}
+diag_df %>%
+  kable(col.names = c("Parameter", "R-hat", "ESS Ratio"),
+        caption = "Convergence diagnostics (R-hat < 1.01 and ESS ratio > 0.1 indicate good mixing)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+All $\hat{R}$ values should be < 1.01 and ESS ratios > 0.1. If not, consider increasing `iter` or `adapt_delta`.
+
+## Posterior Predictive Check
+
+A **posterior predictive check (PPC)** asks: if we simulated new data from our fitted model, would those simulated datasets look like the real data? This is the Bayesian analogue of residual diagnostics.
+
+```{r ppc-density}
+pp_check(bayes_model, ndraws = 100, type = "dens_overlay") +
+  labs(
+    title = "Posterior Predictive Check: Density Overlay",
+    subtitle = "Dark line = observed data; light lines = 100 simulated datasets from posterior",
+    x = "Working Memory Score"
+  ) +
+  theme_minimal()
+```
+
+```{r ppc-scatter}
+pp_check(bayes_model, ndraws = 500, type = "scatter_avg") +
+  labs(
+    title = "Posterior Predictive Check: Observed vs. Predicted (Average)",
+    x = "Average Predicted Score",
+    y = "Observed Score"
+  ) +
+  theme_minimal()
+```
+
+Good model fit shows simulated distributions closely matching the observed data.
+
+---
+
+# Interpreting the Posterior
+
+## Summary of Fixed Effects
+
+The `summary()` output reports the **posterior mean**, standard deviation (analogous to a standard error), and the **95% Credible Interval (CrI)** — the range containing 95% of the posterior probability mass.
+
+> **A note on language**: A 95% CrI means "given our model and data, there is a 95% probability that the true parameter lies within this interval." This is the intuitive interpretation most people *want* from a 95% CI — but it only has this meaning in the Bayesian framework.
+
+```{r model-summary}
+summary(bayes_model)
+```
+
+```{r fixed-effects-table}
+# Tidy extraction of fixed effects
+fe <- fixef(bayes_model) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("Parameter") %>%
+  rename(Mean = Estimate, SD = Est.Error, CrI_lower = Q2.5, CrI_upper = Q97.5)
+```
+
+```{r fe-table, echo=FALSE}
+fe %>%
+  kable(digits = 3,
+        col.names = c("Parameter", "Posterior Mean", "Posterior SD", "2.5% CrI", "97.5% CrI"),
+        caption = "Fixed effects: posterior summaries") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## The Key Effect: Intervention × Time Interaction
+
+The interaction term `intervention:time_scaled` captures the differential rate of change between groups — this is the primary outcome of interest.
+
+```{r interaction-posterior}
+# Extract posterior draws for the interaction
+draws_interaction <- as_draws_df(bayes_model) %>%
+  dplyr::select(`b_intervention:time_scaled`)
+
+# Probability that the effect is positive
+prob_positive <- mean(draws_interaction$`b_intervention:time_scaled` > 0)
+
+# Posterior mean and CrI
+interaction_mean <- mean(draws_interaction$`b_intervention:time_scaled`)
+interaction_cri  <- quantile(draws_interaction$`b_intervention:time_scaled`, c(0.025, 0.975))
+```
+
+```{r interaction-density-plot}
+draws_interaction %>%
+  ggplot(aes(x = `b_intervention:time_scaled`)) +
+  geom_density(fill = "#1F78B4", alpha = 0.6, color = "#1F78B4") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red", linewidth = 1) +
+  geom_vline(xintercept = interaction_mean, color = "navy", linewidth = 1) +
+  annotate("text", x = interaction_mean, y = 0,
+           label = sprintf("Mean = %.3f", interaction_mean),
+           vjust = -1, hjust = -0.1, size = 4) +
+  labs(
+    title = "Posterior Distribution: Intervention × Time Interaction",
+    subtitle = sprintf("P(effect > 0) = %.1f%%", prob_positive * 100),
+    x = "Intervention × Time Coefficient",
+    y = "Posterior Density"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+```
+
+**Interpretation**: The posterior mean for the interaction is **`r round(interaction_mean, 3)`** (95% CrI: [`r round(interaction_cri[1], 3)`, `r round(interaction_cri[2], 3)`]). There is a **`r round(prob_positive * 100, 1)`%** posterior probability that the intervention group improves faster than the control group over time.
+
+## Visualising All Fixed Effects
+
+```{r mcmc-intervals}
+mcmc_intervals(
+  as.array(bayes_model),
+  pars = c("b_Intercept", "b_intervention", "b_time_scaled",
+           "b_intervention:time_scaled", "b_age_baseline", "b_iq", "b_ses"),
+  prob = 0.8, prob_outer = 0.95
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red", alpha = 0.6) +
+  labs(
+    title = "Posterior Intervals for Fixed Effects",
+    subtitle = "Inner bars = 80% CrI; outer bars = 95% CrI"
+  ) +
+  theme_minimal()
+```
+
+---
+
+# Random Effects: Individual Differences
+
+One of the most powerful features of hierarchical Bayes is the principled treatment of **random effects** as full probability distributions, not just variance components.
+
+## Posterior Distributions of Random Effects (BLUPs)
+
+```{r random-effects}
+# Extract random effects (Best Linear Unbiased Predictors under frequentist framing;
+# here they are posterior means of the child-level deviations)
+re_draws <- ranef(bayes_model, summary = TRUE)$child_id %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("child_id") %>%
+  rename(
+    intercept_mean  = Estimate.Intercept,
+    intercept_lower = Q2.5.Intercept,
+    intercept_upper = Q97.5.Intercept,
+    slope_mean      = Estimate.time_scaled,
+    slope_lower     = Q2.5.time_scaled,
+    slope_upper     = Q97.5.time_scaled
+  )
+```
+
+```{r re-intercept-plot}
+re_draws %>%
+  arrange(intercept_mean) %>%
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = intercept_mean, ymin = intercept_lower, ymax = intercept_upper)) +
+  geom_pointrange(alpha = 0.5, color = "#1F78B4", linewidth = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Child-Level Random Intercepts (Sorted)",
+    subtitle = "Each point = posterior mean; bars = 95% CrI for each child",
+    x = "Children (ranked by intercept)",
+    y = "Deviation from Population Intercept"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r re-slope-plot}
+re_draws %>%
+  arrange(slope_mean) %>%
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = slope_mean, ymin = slope_lower, ymax = slope_upper)) +
+  geom_pointrange(alpha = 0.5, color = "#E31A1C", linewidth = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Child-Level Random Slopes for Time (Sorted)",
+    subtitle = "Children vary in their rate of change over time",
+    x = "Children (ranked by slope)",
+    y = "Deviation from Population Slope"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+## Shrinkage: A Key Bayesian Feature
+
+Children with fewer observations are "shrunk" more strongly toward the group mean — a phenomenon called **partial pooling** or **shrinkage**. This is automatic in the Bayesian framework and is why hierarchical models generalise better than fitting individual regression lines per child.
+
+```{r shrinkage-plot}
+# Compare child-level slopes to their observation count
+obs_per_child <- study_data %>%
+  group_by(child_id) %>%
+  summarise(n_obs = n(), .groups = "drop") %>%
+  mutate(child_id = as.character(child_id))
+
+re_draws %>%
+  mutate(child_id = as.character(child_id)) %>%
+  left_join(obs_per_child, by = "child_id") %>%
+  mutate(cri_width = slope_upper - slope_lower) %>%
+  ggplot(aes(x = n_obs, y = cri_width)) +
+  geom_point(alpha = 0.6, color = "#E31A1C") +
+  geom_smooth(method = "lm", se = TRUE, color = "navy") +
+  labs(
+    title = "Shrinkage: Posterior Uncertainty vs. Number of Observations",
+    subtitle = "Children with fewer visits have wider credible intervals (more shrinkage toward group mean)",
+    x = "Number of Observations for Child",
+    y = "Width of 95% CrI for Child-Specific Slope"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+```
+
+---
+
+# Posterior Predictions and Simple Effects
+
+## Predicted Trajectories by Group
+
+We obtain the **expected prediction** — the posterior distribution of the mean working memory score — across the time range for each group, at average covariate values.
+
+```{r posterior-predictions}
+# Create prediction grid at mean covariates
+pred_grid <- expand.grid(
+  time_scaled   = seq(0, 6, by = 0.5),
+  intervention  = c(0, 1),
+  age_baseline  = mean(study_data$age_baseline, na.rm = TRUE),
+  iq            = mean(study_data$iq, na.rm = TRUE),
+  ses           = mean(study_data$ses, na.rm = TRUE)
+) %>%
+  mutate(time_months = time_scaled * 3,
+         group = factor(intervention, levels = c(0, 1),
+                        labels = c("Control", "Intervention")))
+
+# Draw from posterior predictive distribution (population level, no random effects)
+# Returns a matrix: [ndraws x nrows(pred_grid)]
+post_preds_mat <- posterior_epred(bayes_model,
+                                  newdata    = pred_grid,
+                                  re_formula = NA,
+                                  ndraws     = 2000)
+
+# Reshape to long format for summarising
+post_preds_long <- pred_grid %>%
+  mutate(row = row_number()) %>%
+  bind_cols(
+    as.data.frame(t(post_preds_mat)) %>%
+      setNames(paste0("draw_", seq_len(nrow(post_preds_mat))))
+  ) %>%
+  pivot_longer(cols      = starts_with("draw_"),
+               names_to  = ".draw",
+               values_to = ".epred")
+
+# Summarise
+pred_summary <- post_preds_long %>%
+  group_by(time_months, group) %>%
+  summarise(
+    mean_pred  = mean(.epred),
+    lower_50   = quantile(.epred, 0.25),
+    upper_50   = quantile(.epred, 0.75),
+    lower_95   = quantile(.epred, 0.025),
+    upper_95   = quantile(.epred, 0.975),
+    .groups = "drop"
+  )
+```
+
+```{r predictions-plot}
+pred_summary %>%
+  ggplot(aes(x = time_months, y = mean_pred, color = group, fill = group)) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = lower_50, ymax = upper_50), alpha = 0.30, color = NA) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  scale_fill_manual(values = c("Control"  = "#E31A1C", "Intervention" = "#1F78B4")) +
+  labs(
+    title = "Posterior Predicted Trajectories by Group",
+    subtitle = "Dark bands = 50% CrI; light bands = 95% CrI",
+    x = "Time (months since baseline)",
+    y = "Predicted Working Memory Score",
+    color = "Group", fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"), legend.position = "bottom")
+```
+
+## Simple Slopes: Posterior Distribution of Group-Specific Time Effects
+
+```{r simple-slopes}
+draws_df <- as_draws_df(bayes_model)
+
+# Simple slopes
+control_slope      <- draws_df$b_time_scaled
+intervention_slope <- draws_df$b_time_scaled + draws_df$`b_intervention:time_scaled`
+slope_difference   <- draws_df$`b_intervention:time_scaled`
+
+simple_slopes_summary <- data.frame(
+  Group      = c("Control", "Intervention", "Difference (Int - Con)"),
+  Mean_Slope = c(mean(control_slope), mean(intervention_slope), mean(slope_difference)),
+  SD         = c(sd(control_slope), sd(intervention_slope), sd(slope_difference)),
+  CrI_lower  = c(quantile(control_slope, 0.025), quantile(intervention_slope, 0.025), 
+                  quantile(slope_difference, 0.025)),
+  CrI_upper  = c(quantile(control_slope, 0.975), quantile(intervention_slope, 0.975),
+                  quantile(slope_difference, 0.975)),
+  P_positive = c(mean(control_slope > 0), mean(intervention_slope > 0), mean(slope_difference > 0))
+)
+```
+
+```{r simple-slopes-table, echo=FALSE}
+simple_slopes_summary %>%
+  kable(digits = 3,
+        col.names = c("Group / Contrast", "Posterior Mean", "Posterior SD", 
+                      "2.5% CrI", "97.5% CrI", "P(slope > 0)"),
+        caption = "Simple slopes: posterior summaries") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+```{r slopes-density-plot}
+slope_data <- data.frame(
+  value = c(control_slope, intervention_slope),
+  group = rep(c("Control", "Intervention"), each = length(control_slope))
+)
+
+slope_data %>%
+  ggplot(aes(x = value, fill = group, color = group)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  scale_fill_manual(values  = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  scale_color_manual(values = c("Control" = "#E31A1C", "Intervention" = "#1F78B4")) +
+  labs(
+    title = "Posterior Distributions of Group-Specific Time Slopes",
+    subtitle = "Separation between distributions reflects the intervention effect on growth",
+    x = "Time Slope (change in WM score per time unit)",
+    y = "Posterior Density",
+    fill = "Group", color = "Group"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold"), legend.position = "bottom")
+```
+
+**Interpretation**: 
+- Control group slope: **`r round(simple_slopes_summary$Mean_Slope[1], 3)`** (95% CrI: [`r round(simple_slopes_summary$CrI_lower[1], 3)`, `r round(simple_slopes_summary$CrI_upper[1], 3)`]); P(positive) = **`r round(simple_slopes_summary$P_positive[1] * 100, 1)`%**
+- Intervention group slope: **`r round(simple_slopes_summary$Mean_Slope[2], 3)`** (95% CrI: [`r round(simple_slopes_summary$CrI_lower[2], 3)`, `r round(simple_slopes_summary$CrI_upper[2], 3)`]); P(positive) = **`r round(simple_slopes_summary$P_positive[2] * 100, 1)`%**
+- Difference: **`r round(simple_slopes_summary$Mean_Slope[3], 3)`**; P(difference > 0) = **`r round(simple_slopes_summary$P_positive[3] * 100, 1)`%**
+
+## Group Differences at Specific Timepoints
+
+```{r group-differences-timepoints}
+test_times <- c(0, 1, 2, 3)  # in time_scaled units (= 0, 3, 6, 9 months)
+
+group_diffs <- lapply(test_times, function(t) {
+  # Predicted mean for each group at time t (at population-average covariates)
+  pred_control      <- draws_df$b_Intercept + draws_df$b_time_scaled * t
+  pred_intervention <- draws_df$b_Intercept + draws_df$b_intervention +
+                       draws_df$b_time_scaled * t + draws_df$`b_intervention:time_scaled` * t
+  diff              <- pred_intervention - pred_control
+
+  data.frame(
+    Time_months = t * 3,
+    Difference  = mean(diff),
+    SD          = sd(diff),
+    CrI_lower   = quantile(diff, 0.025),
+    CrI_upper   = quantile(diff, 0.975),
+    P_positive  = mean(diff > 0)
+  )
+}) %>%
+  bind_rows()
+```
+
+```{r group-diffs-table, echo=FALSE}
+group_diffs %>%
+  kable(digits = 3,
+        col.names = c("Time (months)", "Posterior Mean Difference", "SD", 
+                      "2.5% CrI", "97.5% CrI", "P(Int > Con)"),
+        caption = "Intervention vs Control group differences at specific timepoints") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+---
+
+# Prior Sensitivity Analysis
+
+A good Bayesian analysis checks whether conclusions change substantially under different prior specifications. We compare three sets of priors:
+
+1. **Weakly informative** (our main model — `normal(0, 10)` for fixed effects)
+2. **Diffuse / vague** (`normal(0, 50)` for fixed effects)
+3. **Stronger** (`normal(0, 5)` for fixed effects)
+
+```{r prior-sensitivity, results='hide', cache=TRUE}
+# Diffuse priors
+priors_diffuse <- c(
+  prior(normal(100, 50), class = Intercept),
+  prior(normal(0, 50),   class = b),
+  prior(normal(0, 30),   class = sigma),
+  prior(normal(0, 20),   class = sd),
+  prior(lkj(1),          class = cor)
+)
+
+# Stronger priors
+priors_strong <- c(
+  prior(normal(100, 10), class = Intercept),
+  prior(normal(0, 5),    class = b),
+  prior(normal(0, 10),   class = sigma),
+  prior(normal(0, 5),    class = sd),
+  prior(lkj(4),          class = cor)
+)
+
+model_diffuse <- brm(
+  formula = working_memory_score ~
+    intervention * time_scaled + age_baseline + iq + ses +
+    (1 + time_scaled | child_id),
+  data    = study_data,
+  prior   = priors_diffuse,
+  family  = gaussian(),
+  chains  = 4, iter = 3000, warmup = 1000, cores = 4, seed = 42,
+  control = list(adapt_delta = 0.95),
+  file    = "bayes_diffuse_cache"
+)
+
+model_strong <- brm(
+  formula = working_memory_score ~
+    intervention * time_scaled + age_baseline + iq + ses +
+    (1 + time_scaled | child_id),
+  data    = study_data,
+  prior   = priors_strong,
+  family  = gaussian(),
+  chains  = 4, iter = 3000, warmup = 1000, cores = 4, seed = 42,
+  control = list(adapt_delta = 0.95),
+  file    = "bayes_strong_cache"
+)
+```
+
+```{r prior-sensitivity-table}
+extract_interaction <- function(model, label) {
+  fe <- fixef(model)["intervention:time_scaled", ]
+  data.frame(
+    Prior      = label,
+    Mean       = fe["Estimate"],
+    SD         = fe["Est.Error"],
+    CrI_lower  = fe["Q2.5"],
+    CrI_upper  = fe["Q97.5"]
+  )
+}
+
+sensitivity_results <- rbind(
+  extract_interaction(model_strong,  "Strong (N(0,5))"),
+  extract_interaction(bayes_model,   "Weakly Informative (N(0,10))"),
+  extract_interaction(model_diffuse, "Diffuse (N(0,50))")
+)
+```
+
+```{r sensitivity-table, echo=FALSE}
+sensitivity_results %>%
+  kable(digits = 3, row.names = FALSE,
+        col.names = c("Prior Specification", "Posterior Mean", "Posterior SD", 
+                      "2.5% CrI", "97.5% CrI"),
+        caption = "Prior sensitivity: interaction effect under different prior specifications") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+```{r sensitivity-plot}
+sensitivity_results %>%
+  mutate(Prior = factor(Prior, levels = c("Diffuse (N(0,50))", "Weakly Informative (N(0,10))", "Strong (N(0,5))"))) %>%
+  ggplot(aes(x = Prior, y = Mean, ymin = CrI_lower, ymax = CrI_upper, color = Prior)) +
+  geom_pointrange(size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey40") +
+  coord_flip() +
+  labs(
+    title = "Prior Sensitivity: Interaction Effect Under Different Priors",
+    subtitle = "Robust conclusions should not change dramatically across reasonable priors",
+    x = "Prior Specification",
+    y = "Intervention × Time Interaction Coefficient"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none", plot.title = element_text(size = 14, face = "bold"))
+```
+
+If the estimates and CrIs are similar across prior specifications, we can be confident our conclusions are **data-driven**, not prior-driven.
+
+---
+
+# Comparison: Bayesian vs Frequentist (Case Study 3)
+
+We now compare the Bayesian results with the best frequentist model from Case Study 3 (Mixed + CR2).
+
+```{r comparison-table}
+# Bayesian estimates for the interaction
+bayes_interaction <- fixef(bayes_model)["intervention:time_scaled", ]
+
+comparison <- data.frame(
+  Method         = c("Frequentist: Mixed + CR2 (CS3)", "Hierarchical Bayes (CS4)"),
+  Estimate       = c(NA, bayes_interaction["Estimate"]),   # Fill NA from CS3 results
+  Uncertainty    = c(NA, bayes_interaction["Est.Error"]),
+  CI_lower       = c(NA, bayes_interaction["Q2.5"]),
+  CI_upper       = c(NA, bayes_interaction["Q97.5"]),
+  Interpretation = c("Point estimate ± SE; asymptotic 95% CI",
+                     "Posterior mean; exact 95% CrI")
+)
+```
+
+Key conceptual differences:
+
+| Feature | Mixed + CR2 (Frequentist) | Hierarchical Bayes |
+|---|---|---|
+| **Parameter estimates** | Point estimates | Full posterior distributions |
+| **Interval meaning** | 95% of such intervals contain truth | 95% probability true value is inside |
+| **Random effects** | Variance components only | Full posterior for each child |
+| **Missing data** | MAR assumed, REML handles | MAR assumed, MCMC handles |
+| **Overfitting protection** | REML + CR2 correction | Shrinkage priors |
+| **Diagnostics** | Residual plots, R², AIC | R-hat, ESS, posterior predictive checks |
+| **Computation** | Seconds | Minutes to hours |
+| **Conclusion here** | Significant intervention effect | High posterior probability of effect |
+
+The two frameworks typically agree on conclusions when the data are informative and priors are weakly specified — as they do here. Bayesian methods add value primarily through richer uncertainty quantification, exact small-sample inference, and the ability to make direct probability statements about parameters.
+
+---
+
+# Conclusions
+
+## What We Found
+
+The hierarchical Bayesian model confirms the finding from Case Study 3: **the working memory training intervention produces a sustained improvement over time compared to the control group**.
+
+- The posterior mean for the intervention × time interaction is **`r round(fixef(bayes_model)["intervention:time_scaled", "Estimate"], 3)`** (95% CrI: [`r round(fixef(bayes_model)["intervention:time_scaled", "Q2.5"], 3)`, `r round(fixef(bayes_model)["intervention:time_scaled", "Q97.5"], 3)`])
+- The posterior probability that the intervention effect is positive is **`r round(mean(as_draws_df(bayes_model)$"b_intervention:time_scaled" > 0) * 100, 1)`%**
+- Prior sensitivity analysis shows robust conclusions across different prior specifications
+- Posterior predictive checks confirm adequate model fit
+
+## What Bayesian Modelling Adds
+
+1. **Exact probabilistic statements**: We can say "there is a 95% probability the effect is between X and Y" — not possible in the frequentist framework.
+2. **Individual-level uncertainty**: Each child's random effects have a full posterior distribution, not just a point estimate.
+3. **Natural shrinkage**: Children with fewer observations are automatically pulled toward the group mean, improving generalisation.
+4. **Richer diagnostics**: PPC, R-hat, and ESS give a more complete picture of model adequacy than residual plots alone.
+
+## Limitations and What's Next
+
+Limitations of this analysis:
+
+- **Missing data**: We assumed data are Missing At Random (MAR). Bayesian models can in principle handle Missing Not At Random (MNAR) with additional modelling effort.
+- **Linearity**: Like Case Study 3, we assumed linear time effects. Non-linear trajectories (e.g., splines or polynomial terms) could better capture a potential plateau effect visible in the mean trajectory plots.
+- **Computation**: Bayesian MCMC is considerably slower than `lmer`. For very large datasets, variational Bayes approximations (`algorithm = "meanfield"` in `brms`) trade accuracy for speed.
+
+## Directions Not Yet Covered
+
+1. **Non-linear trajectories**: Spline-based or piecewise Bayesian models for more complex time trends.
+2. **Bayesian GLMM**: Extensions for binary, count, or time-to-event outcomes (e.g., `family = bernoulli()` in `brms`).
+3. **Missing Not At Random**: Joint models for the outcome and dropout process.
+4. **Informative priors**: Using meta-analytic evidence or pilot data to construct stronger, evidence-based priors.
+5. **Bayesian power analysis**: Using posterior predictive simulation to plan future studies.

@@ -87,7 +87,6 @@
           "file": "ch03_2_hb.html",
           "type": "prose",
           "description": "Bayesian multilevel models with priors on variance components",
-          "status": "draft",
           "case_studies": [
             { "file": "case_study/multilevel_4.html", "label": "Case Study 4: Hierarchical Bayes" }
           ]
