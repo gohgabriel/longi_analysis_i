@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.1 What is Longitudinal Data Analysis? — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch01_1_intro"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>1.1 What is Longitudinal Data Analysis?</h1>
+      <p class="subtitle">Repeated measures, and why they need special treatment</p>
+
+      <div class="objectives">
+        <div class="objectives-icon"><i data-lucide="target"></i></div>
+        <div class="objectives-body">
+          <div class="obj-label">Learning objectives</div>
+          <ul>
+            <li>Understand what distinguishes longitudinal data from cross-sectional data</li>
+            <li>Recognise the two sources of variation unique to repeated-measures designs</li>
+            <li>Know the foundational texts in this field and what each offers</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── Margin notes ── -->
+      <aside class="margin-note blue" data-ref="ref-crosssectional">
+        <span class="note-label">Cross-sectional vs. longitudinal</span>
+        A cross-sectional study measures each person once. A longitudinal study measures the same people repeatedly. The distinction sounds simple — but it fundamentally changes what you can and cannot claim from your data.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-withinbetween">
+        <span class="note-label">Within vs. between</span>
+        <em>Between-person</em> variation is what differs across individuals — some children are just higher scorers than others. <em>Within-person</em> variation is what changes within the same individual over time. Longitudinal data gives you both. Cross-sectional data gives you only the first.
+      </aside>
+
+      <aside class="margin-note amber" data-ref="ref-fragmented">
+        <span class="note-label">Why so many methods?</span>
+        GLS, multilevel models, repeated-measures ANOVA, sandwich estimators, hierarchical Bayes — they are all attempts to solve the same underlying problem. They differ in which assumptions they relax and what they do with within-person information. A unified framework makes these differences legible.
+      </aside>
+
+      <aside class="margin-note green" data-ref="ref-readings">
+        <span class="note-label">Where to go deeper</span>
+        These notes cover the core ideas. For a full treatment of any single method, the texts listed below are the field's standard references.
+      </aside>
+
+      <!-- ── Prose ── -->
+      <div class="prose">
+
+        <p>
+          Most of what you learned in an introductory statistics course assumes that each observation
+          in your dataset is independent — one person, one row, one data point. That assumption
+          powers everything from the standard error formula to the p-value. It is also, very often,
+          wrong.
+        </p>
+
+        <p>
+          <span id="ref-crosssectional"></span>In program evaluation, we frequently want to know not just whether a group differs from
+          another group, but whether people <em>change</em> — and whether the program caused that
+          change. To answer that, we measure the same people more than once. That is longitudinal
+          data: observations nested within individuals, collected across time.
+        </p>
+
+        <p>
+          The moment you do this, the independence assumption breaks down by design. Two observations
+          from the same child are not independent — they share that child's history, temperament,
+          home environment, and everything else that makes them who they are. Treating them as if
+          they came from different people is not just technically wrong; it discards the most
+          valuable feature of the data.
+        </p>
+
+        <hr>
+
+        <h2>Two sources of variation</h2>
+
+        <p>
+          <span id="ref-withinbetween"></span>Cross-sectional data has one source of variation: people differ from each other.
+          Longitudinal data has two:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Between-person variation</strong> — some children simply score higher than others,
+            regardless of the program. This is stable, individual-level signal.
+          </li>
+          <li>
+            <strong>Within-person variation</strong> — the same child's score changes over time.
+            This is where the program effect lives.
+          </li>
+        </ul>
+
+        <p>
+          Standard regression conflates these two sources. It sees a dataset with children's scores
+          at different time points and treats all the variation as one undifferentiated pool. When
+          it estimates how scores change over time, it cannot tell whether it is picking up genuine
+          within-person change or just sampling from a mix of high-scoring and low-scoring children
+          at different time points.
+        </p>
+
+        <p>
+          Longitudinal methods exist to separate these sources — to give each its proper accounting,
+          and to make sure the program effect estimate is grounded in the right kind of variation.
+        </p>
+
+        <hr>
+
+        <h2>A landscape of methods</h2>
+
+        <p>
+          <span id="ref-fragmented"></span>If you have read papers in developmental psychology, education research, or health
+          sciences, you will have encountered a bewildering variety of analysis approaches:
+          repeated-measures ANOVA, mixed models, GLS, hierarchical linear models, Bayesian
+          multilevel models, sandwich estimators. Each has its own notation, its own software
+          defaults, its own set of assumptions buried in a methods section.
+        </p>
+
+        <p>
+          This proliferation is not arbitrary — each method is a different answer to a real question
+          about how to handle the correlation structure in longitudinal data. But without a common
+          language for comparing them, it is hard to know why you would choose one over another,
+          or what you are actually assuming when you run a given model.
+        </p>
+
+        <p>
+          These notes work through the main methods in this landscape — from naïve OLS through to
+          Bayesian multilevel models — with a focus on building genuine understanding rather than
+          procedural familiarity. The goal is that by the end, you can pick up a methods paper,
+          identify what the authors did and why, and form a view on whether it was the right call.
+        </p>
+
+        <hr>
+
+        <h2>Key readings</h2>
+
+        <p>
+          <span id="ref-readings"></span>These notes are self-contained, but they sit within a broader literature. The following
+          texts are the field's standard references, and each rewards close reading.
+        </p>
+
+        <div class="callout blue" style="margin-bottom:1rem;">
+          <div class="callout-body">
+            <div class="callout-title">Harrell, F. E. (2015). <em>Regression Modeling Strategies</em> (2nd ed.). Springer.</div>
+            The foundational text on applied regression. Harrell's emphasis on pre-specification,
+            honest model validation, and the costs of data dredging sets the intellectual standard
+            for everything in this course. Particularly relevant: chapters on model assumptions,
+            variable selection, and the relationship between sample size and model complexity.
+          </div>
+        </div>
+
+        <div class="callout blue" style="margin-bottom:1rem;">
+          <div class="callout-body">
+            <div class="callout-title">Fitzmaurice, G. M., Laird, N. M., &amp; Ware, J. H. (2011). <em>Applied Longitudinal Analysis</em> (2nd ed.). Wiley.</div>
+            The canonical longitudinal-specific textbook. Covers marginal models (GLS), random effects models, and missing data in depth. More mathematically demanding than these notes, but the go-to reference for anyone who wants to understand the theory behind the methods.
+          </div>
+        </div>
+
+        <div class="callout blue" style="margin-bottom:1rem;">
+          <div class="callout-body">
+            <div class="callout-title">Singer, J. D., &amp; Willett, J. B. (2003). <em>Applied Longitudinal Data Analysis</em>. Oxford University Press.</div>
+            The most accessible entry point in the literature. Singer and Willett's person-period
+            framing — treating each observation as a row, nested within persons — is intuitive and
+            maps cleanly onto modern software. Heavy use of worked examples throughout.
+          </div>
+        </div>
+
+        <div class="callout blue" style="margin-bottom:1rem;">
+          <div class="callout-body">
+            <div class="callout-title">Gelman, A., &amp; Hill, J. (2007). <em>Data Analysis Using Regression and Multilevel/Hierarchical Models</em>. Cambridge University Press.</div>
+            The bridge between classical and Bayesian multilevel approaches. Gelman and Hill are
+            unusually clear on the conceptual meaning of random effects and partial pooling — ideas
+            that become central in chapters 2.4 and 3.2 of these notes.
+          </div>
+        </div>
+
+        <hr>
+
+        <h2>Why a framework?</h2>
+
+        <p>
+          Before working through any individual method, it is worth asking: what are all these
+          methods actually <em>doing</em>? They each have different equations, different assumptions,
+          different outputs — but underneath, they are all solving the same kind of problem. They
+          all make assumptions about how data is generated, choose something to estimate, and use
+          some rule to extract that estimate from the data.
+        </p>
+
+        <p>
+          If you can see that structure clearly, a few things become possible. You can compare
+          methods on equal footing. You can identify exactly which assumption a new method is
+          relaxing. You can look at an unfamiliar model and ask the right questions about it,
+          rather than feeling lost in notation.
+        </p>
+
+        <p>
+          That is what the next section provides: a five-component framework — <strong>Architecture,
+          Parameters, Criterion, Estimator, Solver</strong> — that applies equally to every method
+          in this course. It is worth understanding well, because it will be used throughout.
+        </p>
+
+      </div><!-- /.prose -->
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+</body>
+</html>
