@@ -36,8 +36,7 @@
           "title": "2.2 Naïve OLS",
           "file": "ch02_2_ols.html",
           "type": "prose",
-          "description": "Between-groups regression and why it fails for longitudinal data",
-          "status": "draft"
+          "description": "Between-groups regression and why it fails for longitudinal data"
         },
         {
           "id": "ch02_3_gls",
@@ -45,7 +44,6 @@
           "file": "ch02_3_gls.html",
           "type": "prose",
           "description": "Modelling the covariance structure directly",
-          "status": "draft",
           "case_studies": [
             { "file": "case_study/multilevel_1.html", "label": "Case Study 1: Comparing OLS and GLS" }
           ]

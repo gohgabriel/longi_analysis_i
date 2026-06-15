@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figure 2.3.2 — Covariance Structures</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})">
+  </script>
+  <style>
+    .w-root { font-family: sans-serif; }
+
+    /* ── Structure toggle ── */
+    .struct-toggle {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .struct-btn {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      padding: 10px 8px;
+      background: transparent; border: none;
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      text-align: center;
+    }
+    .struct-btn:last-child { border-right: none; }
+    .struct-btn:hover { background: var(--surface-2); }
+    .struct-btn.active { background: var(--blue-bg); }
+    .struct-btn-name {
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--text-muted);
+      transition: color 0.15s;
+    }
+    .struct-btn.active .struct-btn-name { color: var(--blue-text); }
+    .struct-btn-sub {
+      font-size: 0.68rem; color: var(--text-muted);
+      line-height: 1.3;
+    }
+    .param-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem; font-weight: 600;
+      padding: 1px 6px; border-radius: 3px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      margin-top: 2px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .struct-btn.active .param-badge {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      border-color: var(--blue);
+    }
+
+    /* ── Slider ── */
+    .rho-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 0.6rem 0.9rem; margin-bottom: 1.25rem;
+      transition: opacity 0.2s;
+    }
+    .rho-row.disabled { opacity: 0.4; pointer-events: none; }
+    .rho-lbl { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .rho-row input[type=range] { flex: 1; cursor: pointer; accent-color: var(--blue); }
+    .rho-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem; font-weight: 600; color: var(--text);
+      min-width: 36px; text-align: right;
+    }
+
+    /* ── Main layout: matrix left, explainer right ── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.75rem;
+      align-items: start;
+    }
+    @media (max-width: 560px) {
+      .main-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Matrix ── */
+    .matrix-wrap { flex-shrink: 0; }
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 40px repeat(3, 64px);
+      gap: 3px;
+    }
+    .m-corner {}
+    .m-col-hdr, .m-row-hdr {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; line-height: 1.2;
+    }
+    .m-col-hdr { height: 32px; }
+    .m-row-hdr { height: 52px; justify-content: flex-end; padding-right: 5px; }
+
+    .mcell {
+      height: 52px; border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid transparent;
+      transition: background 0.3s, color 0.3s, border-color 0.3s, transform 0.15s, box-shadow 0.15s;
+      cursor: default;
+      position: relative;
+    }
+    .cell-sym {
+      font-size: 0.6rem; line-height: 1;
+      transition: color 0.3s;
+    }
+    .cell-val {
+      font-size: 0.68rem; font-weight: 600; line-height: 1;
+      transition: color 0.3s;
+    }
+
+    /* cell type styles */
+    .mc-diag {
+      background: var(--blue-bg);
+      border-color: rgba(55,138,221,0.22);
+    }
+    .mc-diag .cell-sym { color: var(--blue-text); }
+    .mc-diag .cell-val { color: var(--blue-text); }
+
+    .mc-off {
+      /* background/color set by JS */
+    }
+    .mc-off-free {
+      /* unstructured: each cell its own colour, set by JS */
+    }
+
+    .mcell:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 0 2px var(--blue);
+      z-index: 3;
+    }
+
+    /* ── Explainer panel ── */
+    .explainer-panel {}
+
+    .ep-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.8rem;
+      margin-bottom: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+      border-left: 3px solid var(--border-strong);
+      transition: border-left-color 0.2s;
+    }
+    .ep-formula.blue  { border-left-color: var(--blue); }
+    .ep-formula.green { border-left-color: var(--green); }
+    .ep-formula.amber { border-left-color: var(--amber); }
+    .ep-formula strong { color: var(--text); }
+
+    .ep-body {
+      font-size: 0.82rem; line-height: 1.7;
+      color: var(--text-muted);
+    }
+    .ep-body strong { color: var(--text); }
+
+    /* colour chips in the legend */
+    .ep-chip {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.66rem; font-weight: 600;
+      padding: 1px 7px; border-radius: 3px;
+      vertical-align: middle;
+    }
+    .chip-diag   { background: var(--blue-bg);   color: var(--blue-text); }
+    .chip-near   { background: rgb(254,243,199);  color: rgb(120,53,15); }
+    .chip-far    { background: rgb(254,249,231);  color: rgb(161,98,23); }
+    .chip-free1  { background: rgb(254,243,199);  color: rgb(120,53,15); }
+    .chip-free2  { background: rgb(240,253,244);  color: rgb(6,95,70); }
+    .chip-free3  { background: rgb(239,246,255);  color: rgb(29,78,216); }
+
+    /* ── Tooltip ── */
+    .w-tooltip {
+      display: none; position: fixed; z-index: 999;
+      background: var(--text); color: #e8e8e4;
+      font-size: 0.73rem; line-height: 1.55;
+      padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
+      max-width: 230px; pointer-events: none;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+    }
+    .w-tooltip strong { color: #fff; display: block; margin-bottom: 3px; font-size: 0.7rem; }
+
+    /* ── Caption ── */
+    .w-caption {
+      font-size: 0.75rem; color: var(--text-muted);
+      font-style: italic; text-align: center; margin-top: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+<div class="w-root" id="app">
+
+  <!-- Structure toggle -->
+  <div class="struct-toggle" role="tablist">
+    <button class="struct-btn active" data-struct="cs" role="tab">
+      <span class="struct-btn-name">Compound Symmetry</span>
+      <span class="struct-btn-sub">All pairs equally correlated</span>
+      <span class="param-badge">2 parameters</span>
+    </button>
+    <button class="struct-btn" data-struct="ar1" role="tab">
+      <span class="struct-btn-name">AR(1)</span>
+      <span class="struct-btn-sub">Correlation decays with time</span>
+      <span class="param-badge">2 parameters</span>
+    </button>
+    <button class="struct-btn" data-struct="un" role="tab">
+      <span class="struct-btn-name">Unstructured</span>
+      <span class="struct-btn-sub">All entries estimated freely</span>
+      <span class="param-badge">4 parameters</span>
+    </button>
+  </div>
+
+  <!-- Slider -->
+  <div class="rho-row" id="rho-row">
+    <span class="rho-lbl" id="rho-lbl">Correlation &nbsp;<strong>ρ</strong></span>
+    <input type="range" id="rho-slider" min="0" max="0.99" step="0.01" value="0.7">
+    <span class="rho-num" id="rho-display">0.70</span>
+  </div>
+
+  <!-- Matrix + explainer -->
+  <div class="main-layout">
+    <div class="matrix-wrap">
+      <div class="matrix-grid" id="matrix"></div>
+    </div>
+    <div class="explainer-panel" id="explainer"></div>
+  </div>
+
+  <p class="w-caption">Figure 2.3.2 — Three covariance structures for one child measured at three time points. The slider controls ρ for Compound Symmetry and AR(1); Unstructured estimates each entry freely. Hover any cell for a plain-English explanation.</p>
+
+</div>
+<div class="w-tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  const LABELS  = ['t1', 't2', 't3'];
+  const SIGMA2  = 1; // normalised to 1 for display; shown as σ²
+
+  let currentStruct = 'cs';
+
+  /* ── Covariance entry given structure and positions ── */
+  function covEntry(struct, r, c, rho) {
+    if (r === c) return { sym: 'σ²', val: 'σ²', kind: 'diag' };
+    const gap = Math.abs(r - c);
+    if (struct === 'cs') {
+      return { sym: 'σ₁₂', val: `ρσ²`, kind: 'near' };
+    }
+    if (struct === 'ar1') {
+      const exp = gap === 1 ? '' : '²';
+      return { sym: gap === 1 ? 'ρσ²' : 'ρ²σ²', val: gap === 1 ? `ρσ²` : `ρ²σ²`, kind: gap === 1 ? 'near' : 'far' };
+    }
+    if (struct === 'un') {
+      const labels = ['σ₁₂', 'σ₁₃', 'σ₂₃'];
+      // map (r,c) pair to free parameter index
+      const pairs = [[0,1],[0,2],[1,2]];
+      const key = pairs.findIndex(([a,b]) => (r===a&&c===b)||(r===b&&c===a));
+      const kinds = ['free1','free2','free3'];
+      return { sym: labels[key], val: labels[key], kind: kinds[key] };
+    }
+  }
+
+  /* ── Numeric value for tooltip display ── */
+  function numericVal(struct, r, c, rho) {
+    if (r === c) return '1.00';
+    const gap = Math.abs(r - c);
+    if (struct === 'cs')  return rho.toFixed(2);
+    if (struct === 'ar1') return Math.pow(rho, gap).toFixed(2);
+    if (struct === 'un') {
+      const freeVals = [0.70, 0.45, 0.55]; // fixed illustrative values
+      const pairs = [[0,1],[0,2],[1,2]];
+      const key = pairs.findIndex(([a,b]) => (r===a&&c===b)||(r===b&&c===a));
+      return freeVals[key].toFixed(2);
+    }
+  }
+
+  /* ── Cell colours by kind ── */
+  const KIND_STYLE = {
+    diag:  { bg: 'var(--blue-bg)',        fg: 'var(--blue-text)',   brd: 'rgba(55,138,221,0.22)' },
+    near:  { bg: 'rgb(254,243,199)',       fg: 'rgb(120,53,15)',     brd: 'rgba(217,119,6,0.4)'   },
+    far:   { bg: 'rgb(254,249,231)',       fg: 'rgb(161,98,23)',     brd: 'rgba(217,119,6,0.2)'   },
+    free1: { bg: 'rgb(254,243,199)',       fg: 'rgb(120,53,15)',     brd: 'rgba(217,119,6,0.4)'   },
+    free2: { bg: 'rgb(240,253,244)',       fg: 'rgb(6,95,70)',       brd: 'rgba(5,150,105,0.4)'   },
+    free3: { bg: 'rgb(239,246,255)',       fg: 'rgb(29,78,216)',     brd: 'rgba(55,138,221,0.4)'  },
+  };
+
+  /* ── Build matrix DOM (once) ── */
+  function buildMatrix() {
+    const grid = document.getElementById('matrix');
+    grid.innerHTML = '';
+
+    grid.appendChild(Object.assign(document.createElement('div'), { className: 'm-corner' }));
+    LABELS.forEach(lbl => {
+      const el = document.createElement('div');
+      el.className = 'm-col-hdr';
+      el.textContent = lbl;
+      grid.appendChild(el);
+    });
+
+    LABELS.forEach((rowLbl, r) => {
+      const rh = document.createElement('div');
+      rh.className = 'm-row-hdr';
+      rh.textContent = rowLbl;
+      grid.appendChild(rh);
+
+      LABELS.forEach((_, c) => {
+        const cell = document.createElement('div');
+        cell.className = 'mcell';
+        cell.dataset.r = r; cell.dataset.c = c;
+        cell.id = `cell-${r}-${c}`;
+
+        const symEl = document.createElement('div');
+        symEl.className = 'cell-sym';
+        const valEl = document.createElement('div');
+        valEl.className = 'cell-val';
+
+        cell.appendChild(symEl);
+        cell.appendChild(valEl);
+
+        cell.addEventListener('mouseenter', showTooltip);
+        cell.addEventListener('mousemove',  posTooltip);
+        cell.addEventListener('mouseleave', hideTooltip);
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  /* ── Update matrix cells ── */
+  function updateMatrix(struct, rho) {
+    LABELS.forEach((_, r) => {
+      LABELS.forEach((__, c) => {
+        const cell   = document.getElementById(`cell-${r}-${c}`);
+        const entry  = covEntry(struct, r, c, rho);
+        const num    = numericVal(struct, r, c, rho);
+        const style  = KIND_STYLE[entry.kind];
+
+        cell.style.background  = style.bg;
+        cell.style.borderColor = style.brd;
+        cell.querySelector('.cell-sym').textContent  = entry.sym;
+        cell.querySelector('.cell-sym').style.color  = style.fg;
+        cell.querySelector('.cell-val').textContent  = r === c ? '1.00' : num;
+        cell.querySelector('.cell-val').style.color  = style.fg;
+      });
+    });
+  }
+
+  /* ── Update explainer panel ── */
+  function updateExplainer(struct, rho) {
+    const el = document.getElementById('explainer');
+
+    if (struct === 'cs') {
+      el.innerHTML = `
+        <div class="ep-formula blue">
+          <strong>Form:</strong><br>
+          Σ = σ² · [ (1−ρ)I + ρ·11ᵀ ]<br><br>
+          <strong>Off-diagonals:</strong> all equal to ρσ²
+        </div>
+        <div class="ep-body">
+          <span class="ep-chip chip-diag">σ²</span> Variance — same for every time point.<br><br>
+          <span class="ep-chip chip-near">ρσ²</span> Covariance — identical for every pair, regardless of how far apart in time.<br><br>
+          At ρ = ${rho.toFixed(2)}, t1↔t2 and t1↔t3 are <strong>equally correlated</strong>.
+          Simple to estimate — only two parameters — but assumes distance in time doesn't matter.
+        </div>`;
+    } else if (struct === 'ar1') {
+      const rho2 = Math.pow(rho, 2).toFixed(2);
+      el.innerHTML = `
+        <div class="ep-formula blue">
+          <strong>Form:</strong><br>
+          Σᵢⱼ = σ² · ρ<sup>|i−j|</sup><br><br>
+          <strong>Off-diagonals:</strong> decay geometrically with time gap
+        </div>
+        <div class="ep-body">
+          <span class="ep-chip chip-diag">σ²</span> Variance — same for every time point.<br><br>
+          <span class="ep-chip chip-near">ρσ²</span> Adjacent pairs (gap = 1): correlation = ${rho.toFixed(2)}.<br><br>
+          <span class="ep-chip chip-far">ρ²σ²</span> Distant pairs (gap = 2): correlation = ρ² = ${rho2} — weaker because more time has passed.<br><br>
+          Still only two parameters, but more realistic when proximity in time matters.
+        </div>`;
+    } else {
+      el.innerHTML = `
+        <div class="ep-formula amber">
+          <strong>Form:</strong><br>
+          No constraints — every entry estimated freely.<br><br>
+          <strong>Off-diagonals:</strong> σ₁₂, σ₁₃, σ₂₃ each independent
+        </div>
+        <div class="ep-body">
+          <span class="ep-chip chip-diag">σ²</span> Variance — same for every time point.<br><br>
+          <span class="ep-chip chip-free1">σ₁₂</span> t1↔t2 covariance — estimated freely.<br><br>
+          <span class="ep-chip chip-free2">σ₁₃</span> t1↔t3 covariance — estimated freely.<br><br>
+          <span class="ep-chip chip-free3">σ₂₃</span> t2↔t3 covariance — estimated freely.<br><br>
+          Most flexible, but uses <strong>4 parameters</strong> instead of 2. Requires more data to estimate reliably; the slider has no effect here.
+        </div>`;
+    }
+  }
+
+  /* ── Slider visibility ── */
+  function updateSlider(struct, rho) {
+    const row = document.getElementById('rho-row');
+    row.classList.toggle('disabled', struct === 'un');
+  }
+
+  /* ── Full render ── */
+  function render(struct, rho) {
+    updateMatrix(struct, rho);
+    updateExplainer(struct, rho);
+    updateSlider(struct, rho);
+  }
+
+  /* ── Tooltip ── */
+  const tooltip = document.getElementById('tooltip');
+
+  function showTooltip(e) {
+    const cell   = e.currentTarget;
+    const r      = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+    const rho    = parseFloat(document.getElementById('rho-slider').value);
+    const struct = currentStruct;
+    const num    = numericVal(struct, r, c, rho);
+
+    let title, body;
+    if (r === c) {
+      title = `${LABELS[r]} — variance (σ²)`;
+      body  = `How spread out the child's scores are at ${LABELS[r]}. All three structures treat this identically.`;
+    } else {
+      const gap = Math.abs(r - c);
+      if (struct === 'cs') {
+        title = `${LABELS[r]} ↔ ${LABELS[r === 0 ? c : r]} — compound symmetry`;
+        body  = `Every pair shares the same correlation ρ = ${rho.toFixed(2)}, regardless of time gap. Current value: ${num}·σ².`;
+      } else if (struct === 'ar1') {
+        title = `${LABELS[Math.min(r,c)]} ↔ ${LABELS[Math.max(r,c)]} — AR(1), gap ${gap}`;
+        body  = gap === 1
+          ? `Adjacent observations: correlation = ρ = ${rho.toFixed(2)}. Current value: ${num}·σ².`
+          : `Observations ${gap} steps apart: correlation = ρ² = ${num}. Further in time → weaker correlation.`;
+      } else {
+        const pairs = [[0,1],[0,2],[1,2]];
+        const names = ['σ₁₂','σ₁₃','σ₂₃'];
+        const key   = pairs.findIndex(([a,b]) => (r===a&&c===b)||(r===b&&c===a));
+        title = `${LABELS[Math.min(r,c)]} ↔ ${LABELS[Math.max(r,c)]} — ${names[key]}`;
+        body  = `Estimated freely from the data — no constraint linking it to any other entry. Illustrative value: ${num}·σ².`;
+      }
+    }
+
+    tooltip.innerHTML = `<strong>${title}</strong>${body}`;
+    tooltip.style.display = 'block';
+    posTooltip(e);
+  }
+
+  function posTooltip(e) {
+    const pad = 12;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+    const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    if (x + tw > window.innerWidth  - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+  }
+  function hideTooltip() { tooltip.style.display = 'none'; }
+
+  /* ── Toggle buttons ── */
+  document.querySelectorAll('.struct-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.struct-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentStruct = btn.dataset.struct;
+      const rho = parseFloat(document.getElementById('rho-slider').value);
+      render(currentStruct, rho);
+    });
+  });
+
+  /* ── Slider ── */
+  const slider  = document.getElementById('rho-slider');
+  const display = document.getElementById('rho-display');
+  slider.addEventListener('input', function () {
+    const rho = parseFloat(this.value);
+    display.textContent = rho.toFixed(2);
+    render(currentStruct, rho);
+  });
+
+  /* ── Init ── */
+  buildMatrix();
+  const initRho = parseFloat(slider.value);
+  display.textContent = initRho.toFixed(2);
+  render(currentStruct, initRho);
+
+  // Report height to parent once after render settles
+  function reportHeight() {
+    const h = document.getElementById('app').offsetHeight;
+    window.parent.postMessage({ iframeHeight: h, iframeId: 'widget_2_3_2' }, '*');
+  }
+  setTimeout(reportHeight, 400);
+
+})();
+</script>
+</body>
+</html>

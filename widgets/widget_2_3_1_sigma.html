@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figure 2.3.1 — From Data to Σ</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})">
+  </script>
+
+  <style>
+    .w-root { font-family: sans-serif; }
+
+    /* ── Slider ── */
+    .rho-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 0.6rem 0.9rem; margin-bottom: 1.1rem;
+    }
+    .rho-lbl { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .rho-row input[type=range] { flex: 1; cursor: pointer; accent-color: var(--blue); }
+    .rho-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem; font-weight: 600; color: var(--text);
+      min-width: 36px; text-align: right;
+    }
+
+    /* ── Data table ── */
+    .data-table-wrap { overflow-x: auto; margin-bottom: 0.5rem; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.66rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 0.4rem 0.75rem;
+      border-bottom: 2px solid var(--border-strong);
+      text-align: left; white-space: nowrap;
+    }
+    .data-table td {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    /* t2 cells animate when slider moves */
+    .data-table td.t2-cell {
+      transition: background 0.25s, color 0.25s;
+    }
+    .data-table td.t2-cell.updated {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+    }
+    .data-table tr.child-row { cursor: pointer; }
+
+    .td-c0 { color: #2563eb; font-weight: 600; }
+    .td-c1 { color: #059669; font-weight: 600; }
+    .td-c2 { color: #b45309; font-weight: 600; }
+
+    .row-hl-0 td { background: rgba(37,99,235,0.07) !important; }
+    .row-hl-1 td { background: rgba(5,150,105,0.07) !important; }
+    .row-hl-2 td { background: rgba(180,83,9,0.07)  !important; }
+
+    /* ── Pair callout ── */
+    .pair-callout {
+      min-height: 1.8rem;
+      margin-bottom: 0.9rem;
+      font-size: 0.8rem; line-height: 1.55; color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .pair-callout.visible { color: var(--text); }
+
+    /* ── Divider ── */
+    .w-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    /* ── Two-column matrix row ── */
+    .matrix-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.25rem; align-items: start;
+    }
+    @media (max-width: 560px) { .matrix-row { grid-template-columns: 1fr; } }
+
+    /* ── Matrix labels ── */
+    .m-label {
+      font-size: 0.66rem; text-transform: uppercase;
+      letter-spacing: 0.08em; font-weight: 600; color: var(--text-muted);
+      display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem;
+    }
+    .m-badge {
+      font-size: 0.6rem; padding: 1px 6px; border-radius: 3px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .badge-ols { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border-strong); }
+    .badge-gls { background: var(--blue-bg);   color: var(--blue-text);  border: 1px solid var(--blue); }
+    .m-note { font-size: 0.74rem; color: var(--text-muted); line-height: 1.55; margin-top: 0.5rem; }
+    .m-note strong { color: var(--text); }
+
+    /* ── Matrix grid ── */
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 40px repeat(6, 1fr);
+      gap: 2px; width: 100%;
+    }
+    .m-corner {}
+    .m-col-hdr, .m-row-hdr {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.52rem; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; line-height: 1.2;
+    }
+    .m-col-hdr { height: 28px; }
+    .m-row-hdr { height: 32px; justify-content: flex-end; padding-right: 4px; }
+    .hdr-c0 { color: #2563eb; }
+    .hdr-c1 { color: #059669; }
+    .hdr-c2 { color: #b45309; }
+
+    /* ── Matrix cells ── */
+    .mcell {
+      height: 32px; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.52rem;
+      transition: background 0.3s, color 0.3s, box-shadow 0.12s, transform 0.12s, border-color 0.3s;
+      cursor: default; border: 1px solid transparent;
+    }
+    .mc-zero      { background: var(--surface-2); color: var(--text-muted); }
+    .mc-diag      { background: var(--blue-bg); color: var(--blue-text); border-color: rgba(55,138,221,0.22); }
+    .mc-ols-wrong { background: var(--surface-2); color: var(--text-muted); }
+    .mc-gls-within { /* colours set by JS */ }
+
+    /* hover flash */
+    .mc-flash-diag {
+      box-shadow: 0 0 0 2px var(--amber); transform: scale(1.1); z-index: 4;
+      background: var(--amber-bg) !important; color: var(--amber-text) !important; border-color: var(--amber) !important;
+    }
+    .mc-flash-wrong {
+      box-shadow: 0 0 0 2px var(--red); transform: scale(1.1); z-index: 4;
+      background: var(--red-bg) !important; color: var(--red-text) !important; border-color: var(--red) !important;
+    }
+    .mc-flash-gls {
+      box-shadow: 0 0 0 2px var(--blue); transform: scale(1.1); z-index: 4;
+    }
+
+    /* ── Tooltip ── */
+    .w-tooltip {
+      display: none; position: fixed; z-index: 999;
+      background: var(--text); color: #e8e8e4;
+      font-size: 0.73rem; line-height: 1.55;
+      padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
+      max-width: 230px; pointer-events: none;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+    }
+    .w-tooltip strong { color: #fff; display: block; margin-bottom: 3px; font-size: 0.7rem; }
+
+    /* ── Caption ── */
+    .w-caption {
+      font-size: 0.75rem; color: var(--text-muted);
+      font-style: italic; text-align: center; margin-top: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+<div class="w-root" id="app">
+
+  <!-- Sliders -->
+  <div class="rho-row">
+    <span class="rho-lbl">Programme effect</span>
+    <input type="range" id="effect-slider" min="0" max="20" step="0.5" value="8">
+    <span class="rho-num" id="effect-display">+8</span>
+  </div>
+  <div class="rho-row">
+    <span class="rho-lbl">Within-person correlation &nbsp;<strong>ρ</strong></span>
+    <input type="range" id="rho-slider" min="0" max="1" step="0.01" value="0.85">
+    <span class="rho-num" id="rho-display">0.85</span>
+  </div>
+
+  <!-- Dataset label -->
+  <div style="font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; color:var(--text-muted); margin-bottom:0.45rem;">
+    Dataset
+  </div>
+
+  <!-- Data table -->
+  <div class="data-table-wrap">
+    <table class="data-table" id="data-table">
+      <thead>
+        <tr>
+          <th>Child</th>
+          <th>Score at t1</th>
+          <th>Score at t2</th>
+          <th>Change</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="child-row" data-child="0">
+          <td class="td-c0">Child 1</td>
+          <td class="t1-cell" id="t1-0">—</td>
+          <td class="t2-cell" id="t2-0">—</td>
+          <td class="change-cell" id="ch-0">—</td>
+        </tr>
+        <tr class="child-row" data-child="1">
+          <td class="td-c1">Child 2</td>
+          <td class="t1-cell" id="t1-1">—</td>
+          <td class="t2-cell" id="t2-1">—</td>
+          <td class="change-cell" id="ch-1">—</td>
+        </tr>
+        <tr class="child-row" data-child="2">
+          <td class="td-c2">Child 3</td>
+          <td class="t1-cell" id="t1-2">—</td>
+          <td class="t2-cell" id="t2-2">—</td>
+          <td class="change-cell" id="ch-2">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pair callout -->
+  <div class="pair-callout" id="pair-callout">Hover a child to see their cells in both matrices.</div>
+
+  <hr class="w-divider">
+
+  <!-- Two matrices -->
+  <div class="matrix-row">
+    <div>
+      <div class="m-label"><span class="m-badge badge-ols">OLS</span> $\sigma^2 I$</div>
+      <div class="matrix-grid" id="ols-matrix"></div>
+      <div class="m-note">Within-child pairs are <strong>forced to zero</strong>.</div>
+    </div>
+    <div>
+      <div class="m-label"><span class="m-badge badge-gls">GLS</span> $\Sigma$</div>
+      <div class="matrix-grid" id="gls-matrix"></div>
+      <div class="m-note">Within-child pairs carry the <strong>estimated covariance</strong>.</div>
+    </div>
+  </div>
+
+  <p class="w-caption">Figure 2.3.1 — Drag ρ to change how correlated the children's t1 and t2 scores are. The dataset updates, and both matrices recompute live. Hover a child row to trace their observations into the matrices.</p>
+
+</div>
+
+<div class="w-tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  /* ─────────────────────────────────────────────
+     Fixed anchors: t1 scores and t2 group mean
+     These never change — only t2 individual scores shift with ρ
+  ───────────────────────────────────────────── */
+  const T1       = [44, 60, 40];          // fixed t1 scores
+  const T1_BASE_MEAN = 48;               // mean of T1 scores
+  const T2_SD    = 9;                     // fixed t2 spread
+  const T1_MEAN  = T1.reduce((a,b)=>a+b,0) / T1.length;
+  const T1_SD    = Math.sqrt(T1.map(v=>(v-T1_MEAN)**2).reduce((a,b)=>a+b,0) / T1.length);
+
+  const CHILDREN    = ['Child 1','Child 2','Child 3'];
+  const OBS_LABELS  = ['C1·t1','C1·t2','C2·t1','C2·t2','C3·t1','C3·t2'];
+  const OBS_CHILD   = [0,0,1,1,2,2];
+  const HDR_CLASS   = ['hdr-c0','hdr-c1','hdr-c2'];
+  const CHILD_COLORS = ['#2563eb','#059669','#b45309'];
+
+  let currentScores = null; // [[t1,t2], ...]
+  let activeChild   = null;
+
+  /* ── Generate t2 scores for a given ρ ──
+     Use the linear interpolation approach:
+       t2_i = ρ * (t1_i - t1_mean)/t1_sd * t2_sd + t2_mean  +  sqrt(1-ρ²) * noise_i * t2_sd
+     With fixed noise seeds so scores change smoothly, not randomly.
+  */
+  /* Noise seeds are Gram-Schmidt orthogonalised against the T1 z-scores so
+     that at ρ = 0 the sample covariance σ₁₂ is exactly zero. */
+  const T1_Z = T1.map(v => (v - T1_MEAN) / T1_SD);
+  const NOISE_SEED = (function () {
+    const raw  = [-0.7, 0.9, -0.2];
+    const dot  = raw.reduce((s, v, i) => s + v * T1_Z[i], 0);
+    const t1z2 = T1_Z.reduce((s, v) => s + v * v, 0);
+    for (let i = 0; i < raw.length; i++) raw[i] -= (dot / t1z2) * T1_Z[i];
+    const sd = Math.sqrt(raw.reduce((s, v) => s + v * v, 0) / raw.length);
+    return raw.map(v => v / sd);
+  })();
+
+  function generateT2(rho, effect) {
+    const T2_MEAN = T1_BASE_MEAN + effect; // programme shifts the group mean
+    return T1.map((t1, i) => {
+      const t2 = rho * T1_Z[i] * T2_SD + T2_MEAN
+                 + Math.sqrt(Math.max(0, 1 - rho*rho)) * NOISE_SEED[i] * T2_SD;
+      return Math.round(t2);
+    });
+  }
+
+  /* ── Compute σ² and σ₁₂ from current scores ── */
+  function computeCov(t2scores) {
+    const scores = T1.map((t1, i) => [t1, t2scores[i]]);
+    const n = scores.length;
+    const mean0 = T1.reduce((s,v)=>s+v,0) / n;
+    const mean1 = t2scores.reduce((s,v)=>s+v,0) / n;
+
+    let varSum = 0;
+    scores.forEach(([t1,t2]) => { varSum += (t1-mean0)**2 + (t2-mean1)**2; });
+    const sigma2 = varSum / (2*n);
+
+    let covSum = 0;
+    scores.forEach(([t1,t2]) => { covSum += (t1-mean0)*(t2-mean1); });
+    const sigma12 = covSum / n;
+
+    return { sigma2: +sigma2.toFixed(1), sigma12: +sigma12.toFixed(1) };
+  }
+
+  function isDiag(r,c)   { return r === c; }
+  function isWithin(r,c) { return r !== c && OBS_CHILD[r] === OBS_CHILD[c]; }
+
+  /* ── GLS within-cell colour ──
+     t = 0      → grey   (σ₁₂ = 0, no correlation)
+     t = 1      → amber  (σ₁₂ = σ², ρ = 1)
+     t negative → stays grey (negative covariance, unusual in this context)
+     Scale is relative to σ², so the transition tracks ρ directly.
+  */
+  function glsWithinStyle(sigma12, sigma2) {
+    if (sigma2 === 0) return { bg:'var(--surface-2)', fg:'var(--text-muted)', brd:'transparent' };
+    const t = Math.max(0, Math.min(1, sigma12 / sigma2)); // 0 at ρ=0, 1 at ρ=1
+    if (t < 0.02) return { bg:'var(--surface-2)', fg:'var(--text-muted)', brd:'transparent' };
+    const L = (a,b) => Math.round(a+(b-a)*t);
+    return {
+      bg:  `rgb(${L(234,254)},${L(242,243)},${L(253,199)})`,
+      fg:  `rgb(${L(12,120)},${L(68,53)},${L(124,15)})`,
+      brd: `rgba(${L(55,217)},${L(138,119)},${L(221,6)},${(0.3+t*0.5).toFixed(2)})`
+    };
+  }
+
+  /* ── Build matrix DOM (once) ── */
+  function buildMatrix(containerId, isGls) {
+    const grid = document.getElementById(containerId);
+    grid.innerHTML = '';
+    grid.appendChild(Object.assign(document.createElement('div'), { className: 'm-corner' }));
+
+    OBS_LABELS.forEach((lbl, c) => {
+      const el = document.createElement('div');
+      el.className = `m-col-hdr ${HDR_CLASS[OBS_CHILD[c]]}`;
+      el.textContent = lbl;
+      grid.appendChild(el);
+    });
+
+    OBS_LABELS.forEach((_, r) => {
+      const rh = document.createElement('div');
+      rh.className = `m-row-hdr ${HDR_CLASS[OBS_CHILD[r]]}`;
+      rh.textContent = OBS_LABELS[r];
+      grid.appendChild(rh);
+
+      OBS_LABELS.forEach((__, c) => {
+        const cell = document.createElement('div');
+        cell.className = 'mcell';
+        cell.dataset.r   = r;
+        cell.dataset.c   = c;
+        cell.dataset.gls = isGls ? '1' : '0';
+        cell.id          = `${isGls ? 'g' : 'o'}-${r}-${c}`;
+
+        if (isDiag(r,c))            cell.classList.add('mc-diag');
+        else if (isWithin(r,c) && isGls) cell.classList.add('mc-gls-within');
+        else if (isWithin(r,c))     cell.classList.add('mc-ols-wrong');
+        else                        cell.classList.add('mc-zero');
+
+        cell.addEventListener('mouseenter', showTooltip);
+        cell.addEventListener('mousemove',  posTooltip);
+        cell.addEventListener('mouseleave', hideTooltip);
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  /* ── Update all live values from current rho ── */
+  function update(rho, effect) {
+    const t2scores = generateT2(rho, effect);
+    currentScores  = T1.map((t1, i) => [t1, t2scores[i]]);
+    const { sigma2, sigma12 } = computeCov(t2scores);
+
+    // Update table
+    T1.forEach((t1, i) => {
+      const t2   = t2scores[i];
+      const diff = t2 - t1;
+      document.getElementById(`t1-${i}`).textContent = t1;
+
+      const t2Cell = document.getElementById(`t2-${i}`);
+      t2Cell.textContent = t2;
+      // flash blue on change
+      t2Cell.classList.remove('updated');
+      void t2Cell.offsetWidth; // reflow to restart animation
+      t2Cell.classList.add('updated');
+      setTimeout(() => t2Cell.classList.remove('updated'), 400);
+
+      document.getElementById(`ch-${i}`).textContent = (diff >= 0 ? '+' : '') + diff;
+    });
+
+    // Shared derived values used by both matrices
+    const atZero = sigma12 <= 0;
+
+    // Update OLS diagonal
+    document.querySelectorAll('#ols-matrix .mc-diag').forEach(cell => {
+      cell.textContent = sigma2;
+    });
+    // OLS within: always 0, but shade red as rho increases
+    const L = (a, b) => Math.round(a + (b - a) * rho);
+    const olsBg  = atZero ? 'var(--surface-2)' : `rgb(${L(243,253)},${L(243,228)},${L(241,228)})`;
+    const olsFg  = atZero ? 'var(--text-muted)' : `rgb(${L(107,156)},${L(106,18)},${L(102,18)})`;
+    const olsBrd = atZero ? 'transparent' : `rgba(226,75,74,${(rho * 0.5).toFixed(2)})`;
+    document.querySelectorAll('#ols-matrix .mc-ols-wrong').forEach(cell => {
+      cell.textContent       = '0';
+      cell.style.background  = olsBg;
+      cell.style.color       = olsFg;
+      cell.style.borderColor = olsBrd;
+    });
+    // OLS zero
+    document.querySelectorAll('#ols-matrix .mc-zero').forEach(cell => {
+      cell.textContent = '0';
+    });
+
+    // Update GLS diagonal
+    document.querySelectorAll('#gls-matrix .mc-diag').forEach(cell => {
+      cell.textContent = sigma2;
+    });
+    // GLS within-child — at rho=0, sigma12 is exactly 0 and GLS == OLS
+    const { bg, fg, brd } = atZero
+      ? { bg: 'var(--surface-2)', fg: 'var(--text-muted)', brd: 'transparent' }
+      : glsWithinStyle(sigma12, sigma2);
+    document.querySelectorAll('#gls-matrix .mc-gls-within').forEach(cell => {
+      cell.textContent       = atZero ? '0' : sigma12;
+      cell.style.background  = bg;
+      cell.style.color       = fg;
+      cell.style.borderColor = brd;
+    });
+    // GLS zero
+    document.querySelectorAll('#gls-matrix .mc-zero').forEach(cell => {
+      cell.textContent = '0';
+    });
+
+    // Refresh callout if a child is active
+    if (activeChild !== null) refreshCallout(activeChild, sigma12);
+  }
+
+  /* ── Row hover ── */
+  function setupHover() {
+    document.getElementById('data-table').querySelectorAll('.child-row').forEach(row => {
+      const child = parseInt(row.dataset.child);
+      const obs   = [2*child, 2*child+1];
+
+      row.addEventListener('mouseenter', () => {
+        activeChild = child;
+        row.classList.add(`row-hl-${child}`);
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            if (!obs.includes(r) || !obs.includes(c)) continue;
+            const oCell = document.getElementById(`o-${r}-${c}`);
+            const gCell = document.getElementById(`g-${r}-${c}`);
+            if (isDiag(r,c)) {
+              oCell && oCell.classList.add('mc-flash-diag');
+              gCell && gCell.classList.add('mc-flash-diag');
+            } else {
+              oCell && oCell.classList.add('mc-flash-wrong');
+              gCell && gCell.classList.add('mc-flash-gls');
+            }
+          }
+        }
+        const { sigma12 } = computeCov(currentScores.map(s => s[1]));
+        refreshCallout(child, sigma12);
+      });
+
+      row.addEventListener('mouseleave', () => {
+        activeChild = null;
+        row.classList.remove(`row-hl-${child}`);
+        ['mc-flash-diag','mc-flash-wrong','mc-flash-gls'].forEach(cls =>
+          document.querySelectorAll(`.${cls}`).forEach(el => el.classList.remove(cls))
+        );
+        const callout = document.getElementById('pair-callout');
+        callout.classList.remove('visible');
+        callout.textContent = 'Hover a child to see their cells in both matrices.';
+      });
+    });
+  }
+
+  function refreshCallout(child, sigma12) {
+    const [t1, t2] = currentScores[child];
+    const callout  = document.getElementById('pair-callout');
+    callout.classList.add('visible');
+    callout.innerHTML =
+      `<span style="color:${CHILD_COLORS[child]};font-weight:600">${CHILDREN[child]}</span>` +
+      ` (t1 = ${t1}, t2 = ${t2}) — ` +
+      `GLS records their covariance as <strong>${sigma12}</strong>; ` +
+      `OLS forces it to <strong style="color:var(--red-text)">0</strong>.`;
+  }
+
+  /* ── Tooltip ── */
+  const tooltip = document.getElementById('tooltip');
+
+  function showTooltip(e) {
+    if (!currentScores) return;
+    const cell  = e.currentTarget;
+    const r     = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+    const isGls = cell.dataset.gls === '1';
+    const { sigma2, sigma12 } = computeCov(currentScores.map(s=>s[1]));
+    const rhoEst = sigma2 > 0 ? (sigma12/sigma2).toFixed(2) : '—';
+
+    let title, body;
+    if (isDiag(r,c)) {
+      title = `${OBS_LABELS[r]} — variance`;
+      body  = `Estimated variance for ${CHILDREN[OBS_CHILD[r]]}'s observations: ${sigma2}. Identical in both OLS and GLS.`;
+    } else if (isWithin(r,c)) {
+      const ch = CHILDREN[OBS_CHILD[r]];
+      title = `${OBS_LABELS[r]} × ${OBS_LABELS[c]}`;
+      body  = isGls
+        ? `GLS estimates this as ${sigma12} (ρ̂ ≈ ${rhoEst}). It acknowledges that ${ch}'s scores at t1 and t2 are correlated.`
+        : `OLS forces this to zero — it assumes ${ch}'s t1 and t2 scores are unrelated. The data says otherwise (${sigma12}).`;
+    } else {
+      title = `${OBS_LABELS[r]} × ${OBS_LABELS[c]} — between-person`;
+      body  = `${CHILDREN[OBS_CHILD[r]]} and ${CHILDREN[OBS_CHILD[c]]} are different children. Assumed independent — zero in both models.`;
+    }
+
+    tooltip.innerHTML = `<strong>${title}</strong>${body}`;
+    tooltip.style.display = 'block';
+    posTooltip(e);
+  }
+
+  function posTooltip(e) {
+    const pad = 12;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+    const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    if (x + tw > window.innerWidth  - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+  }
+
+  function hideTooltip() { tooltip.style.display = 'none'; }
+
+  /* ── Sliders ── */
+  const rhoSlider    = document.getElementById('rho-slider');
+  const rhoDisplay   = document.getElementById('rho-display');
+  const effSlider    = document.getElementById('effect-slider');
+  const effDisplay   = document.getElementById('effect-display');
+
+  function getParams() {
+    return {
+      rho:    parseFloat(rhoSlider.value),
+      effect: parseFloat(effSlider.value),
+    };
+  }
+
+  rhoSlider.addEventListener('input', function () {
+    rhoDisplay.textContent = parseFloat(this.value).toFixed(2);
+    const { rho, effect } = getParams();
+    update(rho, effect);
+  });
+
+  effSlider.addEventListener('input', function () {
+    effDisplay.textContent = '+' + parseFloat(this.value).toFixed(1).replace('.0','');
+    const { rho, effect } = getParams();
+    update(rho, effect);
+  });
+
+  /* ── Init ── */
+  buildMatrix('ols-matrix', false);
+  buildMatrix('gls-matrix', true);
+  setupHover();
+  const { rho: initRho, effect: initEffect } = getParams();
+  rhoDisplay.textContent = initRho.toFixed(2);
+  effDisplay.textContent = '+' + initEffect.toFixed(1).replace('.0', '');
+  update(initRho, initEffect);
+
+  // Report height to parent once after render settles
+  function reportHeight() {
+    const h = document.getElementById('app').offsetHeight;
+    window.parent.postMessage({ iframeHeight: h, iframeId: 'widget_2_3_1' }, '*');
+  }
+  setTimeout(reportHeight, 400);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.3 Generalised Least Squares — Longitudinal Data Analysis</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false}
+      ]
+    });">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
+  <style>
+    /* ── Embedded widget iframe ── */
+    .widget-frame {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      margin: 1.5rem 0;
+      display: block;
+      /* height set per-frame below */
+    }
+    .widget-label {
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+
+  <script src="nav.js" data-page="ch02_3_gls"></script>
+
+  <div class="page-body">
+    <div class="card">
+
+      <h1>2.3 Generalised Least Squares</h1>
+      <p class="subtitle">Modelling the covariance structure directly</p>
+
+      <div class="objectives">
+        <div class="objectives-icon"><i data-lucide="target"></i></div>
+        <div class="objectives-body">
+          <div class="obj-label">Learning objectives</div>
+          <ul>
+            <li>Understand what $\Sigma$ is and why OLS had no language for it</li>
+            <li>Recognise the three common covariance structures and when each applies</li>
+            <li>Apply APCES to GLS and trace how $\Sigma^{-1}$ propagates through the estimator</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── Margin notes ── -->
+      <aside class="margin-note" data-ref="ref-naive">
+        <span class="note-label">Reminder</span>
+        The <em>minimal fix</em> framing matters: GLS changes exactly one assumption. Everything else — the model equation, the criterion logic, the estimator shape — is preserved from OLS.
+      </aside>
+
+      <aside class="margin-note blue" data-ref="ref-matrix">
+        <span class="note-label">What is a matrix?</span>
+        A matrix is a rectangular table of numbers. Where a single number $\sigma^2$ captures one fact about your errors, a matrix captures many facts at once — one per row–column pair. The $\Sigma$ matrix has one row and one column for every observation in the dataset.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-structure">
+        <span class="note-label">Choosing a structure</span>
+        Most software will let you compare covariance structures using information criteria such as AIC or BIC. It is worth doing so rather than accepting the default.
+      </aside>
+
+      <aside class="margin-note amber" data-ref="ref-weighted">
+        <span class="note-label">Intuition for $\Sigma^{-1}$</span>
+        If two observations from the same child are very similar to each other, treating them as two independent pieces of evidence overstates how much you actually know. $\Sigma^{-1}$ corrects for that by down-weighting redundant information.
+      </aside>
+
+      <aside class="margin-note green" data-ref="ref-blue">
+        <span class="note-label">Gauss–Markov for GLS</span>
+        When $\Sigma$ is correctly specified, $\hat{\beta}_{GLS}$ is BLUE — the Best Linear Unbiased Estimator. The same guarantee OLS had, now restored for correlated data.
+      </aside>
+
+      <aside class="margin-note" data-ref="ref-fgls">
+        <span class="note-label">Feasible GLS</span>
+        Because $\Sigma$ must be estimated from the data alongside $\beta$, the version actually implemented in software is called <em>Feasible GLS</em> (FGLS). The EM algorithm cycles between estimating $\beta$ and updating $\Sigma$ until convergence.
+      </aside>
+
+      <!-- ── Prose ── -->
+      <div class="prose">
+
+        <p>
+          In the previous section, we learnt that naïve OLS gives us a reasonable estimate of the
+          treatment effect — but when the same children are measured at multiple time points, its
+          standard errors cannot be trusted. The problem is not that OLS is doing something wrong,
+          exactly. It is that OLS is making an assumption — that all observations are independent
+          of each other — that longitudinal data structurally violates. And when that assumption
+          breaks, the uncertainty estimates break with it.
+        </p>
+
+        <p>
+          <span id="ref-naive"></span>Generalised Least Squares, or GLS, is the minimal fix. It keeps everything about OLS
+          that was working — the same equation, the same criterion, the same basic logic — and
+          changes exactly one thing: the assumption about how errors behave. That single change is
+          enough to restore honest standard errors, and to give us confidence intervals and
+          p-values we can actually trust.
+        </p>
+
+        <hr>
+
+        <h2>Architecture</h2>
+
+        <p>The model architecture stays the same:</p>
+
+        $$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$$
+
+        <p>What changes is what we assume about the error term. In OLS, we wrote:</p>
+
+        $$\epsilon \sim \mathcal{N}(0, \sigma^2)$$
+
+        <p>In GLS, we write:</p>
+
+        $$\epsilon \sim \mathcal{N}(0, \Sigma)$$
+
+        <p>
+          <span id="ref-matrix"></span>The difference is that $\sigma^2$ is a single number, and $\Sigma$ is a matrix. To
+          understand why that matters, it helps to think about what $\sigma^2$ was actually
+          saying. When we write $\sigma^2$, we are claiming two things at once: that every
+          child's noise has the same spread, and that no two children's observations are related
+          to each other. One number captures both claims because, under OLS, there is nothing
+          more to say.
+        </p>
+
+        <p>
+          $\Sigma$ replaces that single number with a richer object — one that has a row and a
+          column for every observation in the dataset. The entries along its diagonal play the
+          same role $\sigma^2$ did: they describe how variable each observation is. But the
+          off-diagonal entries say something new. They describe the relationship between pairs of
+          observations. When two observations belong to different children, those entries are zero
+          — one child's score tells us nothing about another's. When two observations belong to
+          the same child, measured at t1 and t2, those entries can be positive — knowing a child
+          scored high at t1 genuinely tells us something about their t2 score.
+        </p>
+
+        <p>This is exactly the structure OLS had no language for. $\Sigma$ gives us that language.</p>
+
+        <div class="widget-label">Figure 2.3.1 — From data to $\Sigma$</div>
+        <iframe
+          id="widget_2_3_1"
+          class="widget-frame"
+          src="widgets/widget_2_3_1_sigma.html"
+          style="height: 600px;"
+          scrolling="no"
+          title="Figure 2.3.1 — From data to the covariance matrix">
+        </iframe>
+
+        <hr>
+
+        <h2>Parameters</h2>
+
+        <p>
+          GLS estimates the same core parameters as OLS: $\beta_0$, the baseline score, and
+          $\beta_1$, the average change attributable to the intervention. But it adds a new
+          estimation task that OLS never had to face. Because $\Sigma$ is no longer a fixed
+          assumption — it is now a claim about the world that needs to be estimated from the data
+          — the covariance structure itself becomes a parameter.
+        </p>
+
+        <p>
+          <span id="ref-structure"></span>In OLS, $\sigma^2$ was a single unknown: one number, one degree of freedom.
+          $\Sigma$, in principle, could contain as many unknowns as there are entries in the
+          matrix — which grows quickly as sample size increases. In practice, this is made
+          tractable by choosing a specific <em>form</em> for $\Sigma$ in advance: a template
+          that constrains how the correlations are structured, reducing the problem to estimating
+          just a small number of values. The three forms most commonly used in practice — and
+          available in the <code>nlme</code> package in R — are the following.
+        </p>
+
+        <ol>
+          <li>
+            <strong>Compound symmetry</strong> assumes that every pair of observations from the
+            same child is equally correlated, regardless of how far apart in time they are. A
+            child's t1 and t2 scores are just as correlated as their t1 and t3 scores. This is
+            the simplest possible structure, and it is often a reasonable first assumption when
+            you have only two time points.
+          </li>
+          <li>
+            <strong>AR(1)</strong>, or first-order autoregressive, assumes that observations
+            closer together in time are more correlated than observations further apart, with the
+            correlation declining at a fixed rate as the time gap grows. For developmental data,
+            this is often more realistic: a child's score this month is more predictive of their
+            score next month than of their score a year from now.
+          </li>
+          <li>
+            <strong>Unstructured</strong> places no constraints on the off-diagonal entries at
+            all — every within-child correlation is estimated freely from the data. This is the
+            most flexible option, but it is also the most expensive: it uses the most degrees of
+            freedom and requires a larger sample to estimate reliably.
+          </li>
+        </ol>
+
+        <div class="widget-label">Figure 2.3.2 — Three covariance structures</div>
+        <iframe
+          id="widget_2_3_2"
+          class="widget-frame"
+          src="widgets/widget_2_3_2_structures.html"
+          style="height: 450px;"
+          scrolling="no"
+          title="Figure 2.3.2 — Covariance structures">
+        </iframe>
+
+        <p>
+          Choosing between these structures is itself a modelling decision, and it matters. If
+          you specify a covariance structure that is too simple — say, compound symmetry when the
+          true correlations decay over time — your standard errors will still be somewhat off,
+          just less dramatically than if you had ignored $\Sigma$ entirely. Most software will
+          let you compare structures using AIC or BIC, and it is worth doing so rather than
+          accepting the default.
+        </p>
+
+        <hr>
+
+        <h2>Criterion</h2>
+
+        <p>
+          <span id="ref-weighted"></span>OLS found its estimates by minimising the Residual Sum of Squares — the total
+          squared distance between what the model predicted and what the data actually showed.
+          GLS uses the same basic idea, but with a twist: not all residuals are treated equally.
+        </p>
+
+        <p>
+          Think about what the covariance structure $\Sigma$ is telling us. Some observations
+          are noisier than others. Some pairs of observations are highly correlated. If we treat
+          all of those equally when adding up our residuals, we are ignoring information we
+          actually have. GLS instead minimises a <em>weighted</em> version of the RSS:
+        </p>
+
+        $$\sum (y_i - \hat{y}_i)^\top \Sigma^{-1} (y_i - \hat{y}_i)$$
+
+        <p>
+          The $\Sigma^{-1}$ — the inverse of the covariance matrix — is doing the weighting.
+          Observations that are more uncertain get down-weighted; observations that are highly
+          correlated with others are adjusted so they do not effectively get counted twice.
+        </p>
+
+        <hr>
+
+        <h2>Estimator</h2>
+
+        <p>
+          <span id="ref-blue"></span>The GLS estimator follows the same shape as the OLS estimator, with one modification:
+        </p>
+
+        $$\hat{\beta}_{GLS} = (X^\top \Sigma^{-1} X)^{-1} X^\top \Sigma^{-1} y$$
+
+        <p>Compare this to the OLS version:</p>
+
+        $$\hat{\beta}_{OLS} = (X^\top X)^{-1} X^\top y$$
+
+        <p>
+          The only difference is that $\Sigma^{-1}$ has been inserted in two places. Everything
+          else — the structure of the formula, the logic of how data gets mapped to estimates —
+          is identical. GLS is OLS, but with the data pre-adjusted to account for the correlation
+          structure.
+        </p>
+
+        <p>
+          The theoretical payoff is the same one OLS enjoyed under Gauss-Markov: when $\Sigma$
+          is correctly specified, $\hat{\beta}_{GLS}$ is BLUE. Crucially, unlike OLS applied to
+          correlated data, the standard errors are now honest — they reflect the true uncertainty
+          around $\hat{\beta}_1$, which means the confidence intervals and p-values can be
+          trusted.
+        </p>
+
+        <div class="callout amber">
+          <div class="callout-icon"><i data-lucide="triangle-alert"></i></div>
+          <div class="callout-body">
+            <div class="callout-title">The catch</div>
+            "Correctly specified" is doing a lot of work in that sentence. GLS requires you to
+            commit to a specific form for $\Sigma$ before estimation, and the results are
+            sensitive to that choice. If the structure is wrong, the standard errors will still
+            be off — just less dramatically than under naïve OLS.
+          </div>
+        </div>
+
+        <hr>
+
+        <h2>Solver</h2>
+
+        <p>
+          <span id="ref-fgls"></span>In OLS, the solver is very simple: one formula, no iteration, done. GLS is a little
+          more involved, because $\Sigma$ is not known in advance — it has to be estimated from
+          the data at the same time as $\beta$.
+        </p>
+
+        <p>
+          In practice, this is handled iteratively using the
+          Expectation-Maximisation (EM) algorithm. The algorithm starts with an initial guess for
+          $\Sigma$, uses it to estimate $\hat{\beta}_{GLS}$, then uses the residuals from that
+          estimate to update $\Sigma$, then re-estimates $\hat{\beta}_{GLS}$, and so on — cycling
+          back and forth until the estimates stop changing. This is sometimes called
+          <em>Feasible GLS</em> (FGLS), to distinguish it from the idealised case where $\Sigma$
+          is somehow known ahead of time.
+        </p>
+
+        <p>
+          Most statistical software — including <code>nlme</code> in R — handles all of this
+          quietly in the background. You specify the covariance structure you want, hit run, and
+          the solver does the rest. What you do need to think about is the structure you chose
+          for $\Sigma$ — because if that choice is wrong, no amount of careful iteration will
+          save you.
+        </p>
+
+        <hr>
+
+        <h2>Summary: APCES applied to GLS</h2>
+
+        <div style="overflow-x:auto; margin-bottom:1rem;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-strong);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700; white-space:nowrap;">Component</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">What it means</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">GLS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Architecture</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Assumptions about how the world generates data</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$, with $\epsilon \sim \mathcal{N}(0, \Sigma)$. Errors may be correlated within person.</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Parameters</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The unknown quantities to estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\beta_0$, $\beta_1$ as before, plus the parameters of $\Sigma$ (e.g. $\sigma^2$ and $\rho$ under compound symmetry)</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise weighted RSS: $\sum (y_i - \hat{y}_i)^\top \Sigma^{-1} (y_i - \hat{y}_i)$</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\hat{\beta}_{GLS} = (X^\top \Sigma^{-1} X)^{-1} X^\top \Sigma^{-1} y$. BLUE when $\Sigma$ is correctly specified.</td>
+              </tr>
+              <tr>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Solver</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The computational procedure that finds the answer</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Iterative: EM algorithm alternates between estimating $\hat{\beta}$ and updating $\Sigma$ until convergence (Feasible GLS).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <h2>Summary</h2>
+
+        <p>
+          GLS is a genuine improvement over naïve OLS for longitudinal data. By explicitly
+          modelling the within-person correlation, it produces standard errors that are honest,
+          and inference that can be trusted — provided the covariance structure is correctly
+          specified.
+        </p>
+
+        <p>
+          That proviso is the method's main vulnerability. GLS requires you to commit to a
+          specific form for $\Sigma$ before estimation, and the results are sensitive to that
+          choice. In practice, researchers often try several structures and compare them using
+          AIC or BIC, which helps — but it also adds a layer of modelling decisions that naïve
+          OLS never asked you to make.
+        </p>
+
+      </div><!-- /.prose -->
+
+    </div><!-- /.card -->
+  </div><!-- /.page-body -->
+
+  <script>
+    window.addEventListener('message', function (e) {
+      if (!e.data || !e.data.iframeId || !e.data.iframeHeight) return;
+      const frame = document.getElementById(e.data.iframeId);
+      if (frame) frame.style.height = (e.data.iframeHeight + 16) + 'px';
+    });
+  </script>
+</body>
+</html>
