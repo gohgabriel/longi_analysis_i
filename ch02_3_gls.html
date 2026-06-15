@@ -358,11 +358,7 @@
             </tbody>
           </table>
         </div>
-
-        <hr>
-
-        <h2>Summary</h2>
-
+        
         <p>
           GLS is a genuine improvement over naïve OLS for longitudinal data. By explicitly
           modelling the within-person correlation, it produces standard errors that are honest,
@@ -377,6 +373,30 @@
           AIC or BIC, which helps — but it also adds a layer of modelling decisions that naïve
           OLS never asked you to make.
         </p>
+
+        <hr>
+
+        <h2>Case Study</h2>
+
+        <p>
+          The ideas covered in this section — OLS, GLS, and the difference their covariance
+          assumptions make in practice — are brought together in a worked example. The case study
+          fits both models to the same longitudinal dataset and compares their standard errors,
+          confidence intervals, and conclusions side by side, making concrete what the theory
+          can only gesture at.
+        </p>
+
+        <a class="case-study-link" href="case_study/multilevel_1.html">
+          <div class="case-study-card">
+            <div class="case-study-icon"><i data-lucide="book-open"></i></div>
+            <div class="case-study-body">
+              <div class="case-study-label">Case Study 1</div>
+              <div class="case-study-title">Comparing OLS and GLS for Longitudinal Data</div>
+              <div class="case-study-desc">A step-by-step analysis contrasting naïve OLS with GLS across three covariance structures, with annotated R output and interpretation.</div>
+            </div>
+            <div class="case-study-arrow"><i data-lucide="arrow-right"></i></div>
+          </div>
+        </a>
 
       </div><!-- /.prose -->
 
