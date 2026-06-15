@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3.1 Bayesian Inference — Longitudinal Data Analysis</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
   <style>
     /* Page-specific overrides */
     .ctrl label { min-width: 105px; }
@@ -26,27 +28,29 @@
   <p class="subtitle">Combining both the data and prior knowledge</p>
 
   <div class="objectives">
-    <div class="obj-label">Learning objectives</div>
-    <ul>
-      <li>Understand why frequentist inference alone is insufficient when prior knowledge exists</li>
-      <li>Distinguish the likelihood, prior, and posterior distributions</li>
-      <li>Interpret Bayes&rsquo; theorem as a principled way to update beliefs with data</li>
-      <li>Understand how the strength of the prior relative to the data shapes the posterior</li>
-    </ul>
+    <div class="objectives-icon"><i data-lucide="target"></i></div>
+    <div class="objectives-body">
+      <div class="obj-label">Learning objectives</div>
+      <ul>
+        <li>Understand why frequentist inference alone is insufficient when prior knowledge exists</li>
+        <li>Distinguish the likelihood, prior, and posterior distributions</li>
+        <li>Interpret Bayes&rsquo; theorem as a principled way to update beliefs with data</li>
+        <li>Understand how the strength of the prior relative to the data shapes the posterior</li>
+      </ul>
+    </div>
   </div>
 
   <!-- Preamble explainer -->
   <div class="explainer">
-	<h3>Why do Bayesian statistics?</h3>
-		<p>In the frequentist section, we saw that while <em>θ</em><sub>true</sub> is (assumed to be) <strong>fixed</strong>, we can still construct and approximate a sampling distribution around it to perform statistical inference. However, this is a purely data-driven approach — the plausible values of <em>θ</em> are derived entirely from your data.</p>
-		<p>In practice, we rarely arrive at a study in a state of total ignorance. Theory, previous findings, or simple common sense often give us a reasonable expectation of where <em>θ</em><sub>true</sub> might lie — or at least where it almost certainly does not. For instance, if we want to know the average height of all humans on Earth, the value can't possibly be less than 0cm, and it is very unlikely to be above 200cm. Thus, incorporating prior knowledge can meaningfully improve our statistical reasoning.</p>
-		<p>Bayesian inference allows us to incorporate such prior knowledge. To do this, Bayesians assert that <em>θ</em> is not fixed, but <strong>random</strong> - i.e., it is not a fixed value at all, but something that can take a range of <em>plausible</em> values. Rather than letting the data speak alone, it combines two sources of information:</p>
+    <h3>Why do Bayesian statistics?</h3>
+    <p>In the frequentist section, we saw that while <em>θ</em><sub>true</sub> is (assumed to be) <strong>fixed</strong>, we can still construct and approximate a sampling distribution around it to perform statistical inference. However, this is a purely data-driven approach — the plausible values of <em>θ</em> are derived entirely from your data.</p>
+    <p>In practice, we rarely arrive at a study in a state of total ignorance. Theory, previous findings, or simple common sense often give us a reasonable expectation of where <em>θ</em><sub>true</sub> might lie — or at least where it almost certainly does not. For instance, if we want to know the average height of all humans on Earth, the value can't possibly be less than 0cm, and it is very unlikely to be above 200cm. Thus, incorporating prior knowledge can meaningfully improve our statistical reasoning.</p>
+    <p>Bayesian inference allows us to incorporate such prior knowledge. To do this, Bayesians assert that <em>θ</em> is not fixed, but <strong>random</strong> — i.e., it is not a fixed value at all, but something that can take a range of <em>plausible</em> values. Rather than letting the data speak alone, it combines two sources of information:</p>
     <ul style="margin: 0.3rem 0 0.6rem 1.2rem; line-height: 1.7;">
       <li><span class="lbl-like">The likelihood:</span> what does the data tell us about the plausible values of <em>θ</em><sub>true</sub>?</li>
       <li><span class="lbl-prior">The prior:</span> from your prior knowledge, what are the plausible values of <em>θ</em><sub>true</sub>?</li>
     </ul>
     <p>The result is the <span class="lbl-post">posterior</span> — the updated plausible values of <em>θ</em> after the experiment. Formally:</p>
-
     <div class="formula-row" style="margin: 0.25rem 0 0.8rem;">
       <span class="f-post">p(θ | data)</span>
       <span class="f-op">∝</span>
@@ -72,11 +76,13 @@
 
   <div class="tab-panel active" id="tab-like">
     <p>The likelihood describes how plausible each candidate value of <em>θ</em> is, given the data you observed. For every possible <em>θ</em>, it asks: how probable was the data I actually collected, if that <em>θ</em> were the true value?</p>
-    <p>For frequentists, the hard part about the likelihood is that <em>θ</em><sub>true</sub> is assumed to be fixed, so reasoning about "candidate values of <em>θ</em><sub>true</sub>" is illogical. Conventionally, frequentists calculate only the point estimate — the maximum-likelihood estimate <em>θ</em><sub>MLE</sub> — and discard the remaining candidate values. They then construct a sampling distribution around this <em>θ</em><sub>MLE</sub> to do their statistical reasoning.</p>
-    <p>Because Bayesians assume that <em>θ</em><sub>true</sub> itself is a <strong>random variable</strong> that can be described by a probability distribution, they are instead able to work with the likelihood's candidate <em>θ</em><sub>true</sub> values directly<span class="fn">*</span>. This difference is more a <em>philosophical</em> one than a mathematical one. For instance, in this demo's special case (a normal distribution with known variance), the sampling distribution with its peak at <em>θ̂</em> is identical to the likelihood<span class="fn">**</span>. Thus, frequentists and Bayesians can be seen as just interpreting the same object using a different philosophical lens.<span class="fn">***</span></p>
-    <span class="footnote"><span class="fn">*</span> More accurately, Bayesians reject the notion that a sampling distribution is sound at all. Bayesians argue that since there is only ever one reality and one experiment conducted, the idea of <em>hypothetical replications</em> from "parallel universes" is too metaphysical to serve as a coherent foundation for probability.<br>
-    <span class="fn">**</span> You can think of the likelihood as a mathematically transformed sampling distribution, and vice versa. The sampling distribution and likelihood are not <em>always</em> identical, but for the location-scale families commonly used in psychology (e.g. the <em>t</em>-distribution), they coincide (exactly or asymptotically) so this intuition remains helpful. <br>
-	<span class="fn">***</span> This workshop aims to be philosophically neutral. Some textbooks treat the likelihood and sampling distribution as conceptually distinct objects that happen to coincide numerically in simple cases, while others argue the distinction is more philosophical than mathematical. Both views are defensible, and the debate remains open (although the author leans towards the second). </span>
+    <p>For frequentists, the hard part about the likelihood is that <em>θ</em><sub>true</sub> is assumed to be fixed, so reasoning about &ldquo;candidate values of <em>θ</em><sub>true</sub>&rdquo; is illogical. Conventionally, frequentists calculate only the point estimate — the maximum-likelihood estimate <em>θ</em><sub>MLE</sub> — and discard the remaining candidate values. They then construct a sampling distribution around this <em>θ</em><sub>MLE</sub> to do their statistical reasoning.</p>
+    <p>Because Bayesians assume that <em>θ</em><sub>true</sub> itself is a <strong>random variable</strong> that can be described by a probability distribution, they are instead able to work with the likelihood&rsquo;s candidate <em>θ</em><sub>true</sub> values directly<span class="fn">*</span>. This difference is more a <em>philosophical</em> one than a mathematical one. For instance, in this demo&rsquo;s special case (a normal distribution with known variance), the sampling distribution with its peak at <em>θ̂</em> is identical to the likelihood<span class="fn">**</span>. Thus, frequentists and Bayesians can be seen as just interpreting the same object using a different philosophical lens.<span class="fn">***</span></p>
+    <span class="footnote">
+      <span class="fn">*</span> More accurately, Bayesians reject the notion that a sampling distribution is sound at all. Bayesians argue that since there is only ever one reality and one experiment conducted, the idea of <em>hypothetical replications</em> from &ldquo;parallel universes&rdquo; is too metaphysical to serve as a coherent foundation for probability.<br>
+      <span class="fn">**</span> You can think of the likelihood as a mathematically transformed sampling distribution, and vice versa. The sampling distribution and likelihood are not <em>always</em> identical, but for the location-scale families commonly used in psychology (e.g. the <em>t</em>-distribution), they coincide (exactly or asymptotically) so this intuition remains helpful.<br>
+      <span class="fn">***</span> This workshop aims to be philosophically neutral. Some textbooks treat the likelihood and sampling distribution as conceptually distinct objects that happen to coincide numerically in simple cases, while others argue the distinction is more philosophical than mathematical. Both views are defensible, and the debate remains open (although the author leans towards the second).
+    </span>
   </div>
 
   <div class="tab-panel" id="tab-prior">
@@ -88,7 +94,7 @@
   <div class="tab-panel" id="tab-post">
     <p>The posterior is the result of combining the two: the likelihood re-weights the prior, pulling it toward the values of <em>θ</em> supported by the data. It is your updated belief about <em>θ</em> after the experiment.</p>
     <p>Unlike a frequentist analysis — which gives you a point estimate and a p-value — the posterior is a much richer object from which you can extract all of the following, and more:</p>
-    <ul style="margin: 0.3rem 0 0.6rem 1.2rem; line-height: 1.9;">
+    <ul style="margin: 0.3rem 0 0.6rem 1.2rem; line-height: 1.75;">
       <li><strong>Point estimate:</strong> the posterior mean (E[<em>θ</em>]), or alternatively the MAP (Maximum A Posteriori) — the single peak value of the posterior distribution.</li>
       <li><strong>Credible intervals:</strong> a direct probability statement that <em>θ</em> lies within a given range. The most common summary is the 95% HDI (Highest Density Interval) — the shortest interval containing 95% of the posterior probability. For a symmetric normal posterior, this is numerically equivalent to the frequentist 95% confidence interval.</li>
       <li><strong>Posterior tail probability:</strong> the probability that <em>θ</em> is greater than, less than, or as extreme as any threshold of interest — the Bayesian analogue of a p-value.</li>

@@ -10,6 +10,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
     onload="document.querySelectorAll('.prose').forEach(el => renderMathInElement(el, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]}));">
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.395.0/dist/umd/lucide.min.js" defer
+    onload="lucide.createIcons()"></script>
   <style>
     /* Page-specific overrides */
     .ctrl label { min-width: 90px; }
@@ -25,12 +27,15 @@
   <p class="subtitle">Building a sampling distribution of parameter values</p>
 
   <div class="objectives">
-    <div class="obj-label">Learning objectives</div>
-    <ul>
-      <li>Understand what a sampling distribution is and how it is constructed</li>
-      <li>Interpret p-values under the frequentist perspective</li>
-      <li>Understand the null-centred (Neyman–Pearson) and estimate-centred (Fisher) perspectives</li>
-    </ul>
+    <div class="objectives-icon"><i data-lucide="target"></i></div>
+    <div class="objectives-body">
+      <div class="obj-label">Learning objectives</div>
+      <ul>
+        <li>Understand what a sampling distribution is and how it is constructed</li>
+        <li>Interpret p-values under the frequentist perspective</li>
+        <li>Understand the null-centred (Neyman–Pearson) and estimate-centred (Fisher) perspectives</li>
+      </ul>
+    </div>
   </div>
 
   <div class="prose" style="margin-bottom:1.5rem;">
