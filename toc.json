@@ -49,12 +49,11 @@
           ]
         },
         {
-          "id": "ch02_4_mlm",
+          "id": "ch02_4_multilevel",
           "title": "2.4 Multilevel Models",
-          "file": "ch02_4_mlm.html",
+          "file": "ch02_4_multilevel.html",
           "type": "prose",
           "description": "Random effects and the multilevel model",
-          "status": "draft",
           "case_studies": [
             { "file": "case_study/multilevel_2.html", "label": "Case Study 2: Random intercepts" }
           ]

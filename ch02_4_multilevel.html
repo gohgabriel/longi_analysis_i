@@ -237,18 +237,6 @@
           are less biased.
         </p>
 
-        <div class="callout amber">
-          <div class="callout-icon"><i data-lucide="triangle-alert"></i></div>
-          <div class="callout-body">
-            <div class="callout-title">Comparing models with different fixed effects</div>
-            <span id="ref-reml"></span>If you want to compare two models with different fixed effects — say, a model with
-            just time versus a model with time and a child-level covariate — you cannot use REML
-            likelihoods to do it directly. You need to temporarily switch to plain ML for that
-            comparison. Most software handles this quietly if you ask for a likelihood ratio test,
-            but it is worth knowing about.
-          </div>
-        </div>
-
         <hr>
 
         <h2>Estimator</h2>
@@ -375,8 +363,7 @@
 
         <p>
           The ideas covered in this section are brought together in a worked example comparing
-          multilevel models to other approaches on the same longitudinal dataset, making concrete
-          what the theory can only gesture at.
+          multilevel models to other approaches on the same longitudinal dataset.
         </p>
 
         <a class="case-study-link" href="case_study/multilevel_2.html">
