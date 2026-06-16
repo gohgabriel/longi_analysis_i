@@ -162,21 +162,17 @@
         <h2>Criterion</h2>
 
         <p>
-          In OLS and GLS, the criterion was something to minimise — the residual sum of squares,
-          or a weighted version of it. In the frequentist multilevel model, it became a likelihood
-          to maximise. In hierarchical Bayes, we are optimising the mixture between the data
-          (likelihood) and the prior (our initial belief). We want the full picture. The goal is
-          to characterise the full <strong>joint posterior distribution</strong> over all the
-          parameters:
+          In hierarchical Bayes (and all Bayesian models), the criterion is <strong>Bayes' theorem</strong>,
+          which prescribes the uniquely optimal way to combine the data (likelihood) and our prior
+          beliefs:
         </p>
 
-        $$p(\beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J \mid \text{data}) \;\propto\; p(\text{data} \mid \beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J) \times p(\beta_0, \beta_1, \tau, \sigma)$$
+        $$p(\beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J \mid \text{data}) \;=\; \frac{p(\text{data} \mid \beta_0, \beta_1, \tau, \sigma, u_1, \ldots, u_J) \times p(\beta_0, \beta_1, \tau, \sigma)}{p(\text{data})}$$
 
         <p>
-          In plain language: the posterior is proportional to the likelihood of the data given all
-          the parameters, multiplied by the priors on those parameters. This is just Bayes'
-          theorem applied to the full hierarchical model. In Section 3.1 we demonstrated it for
-          a single parameter. Now, imagine that but for all the parameters in the model!
+          The denominator $p(\text{data})$ is the <strong>marginal likelihood</strong>: the
+          probability of observing the data integrated over all possible parameter values. It acts
+          as a normalising constant ensuring the posterior is a proper probability distribution.
         </p>
 
         <hr>
@@ -184,28 +180,78 @@
         <h2>Estimator</h2>
 
         <p>
-          Because the posterior is a full distribution rather than a point, the "estimator" in
-          hierarchical Bayes is better understood as a summary of that distribution. The posterior
-          mean or median serves as the point estimate — the single number you would report if forced
-          to — and the <strong>credible interval</strong> replaces the confidence interval as the
-          measure of uncertainty. A 95% credible interval has a direct probabilistic interpretation:
-          given the data and the priors, there is a 95% probability that the true parameter lies
-          within that range.
+          Because the posterior is a full distribution rather than a point, there is no single
+          "estimator" in the frequentist sense. Instead, we choose how to summarise the posterior
+          depending on what we want to communicate. The table below lists the main options
+          alongside their frequentist analogues.
+        </p>
+
+        <div style="overflow-x:auto; margin-bottom:1rem;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-strong);">
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Estimator</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Formula</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Frequentist analogue</th>
+                <th style="text-align:left; padding:0.6rem 0.75rem; color:var(--text-muted); font-weight:700;">Interpretation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; color:var(--blue-text);">MAP</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\hat{\theta}_{\text{MAP}} = \underset{\theta}{\arg\max} \; p(\theta \mid \text{data})$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">MLE</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The mode of the posterior; equivalent to the MLE when priors are uniform, otherwise nudged toward the prior</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; color:var(--blue-text);">Posterior mean</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$\mathbb{E}[\theta \mid \text{data}] = \int \theta \; p(\theta \mid \text{data}) \, d\theta$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Point estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The expected value of the posterior distribution; the standard Bayesian point estimate</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; color:var(--blue-text);">Posterior median</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$F^{-1}(0.5 \mid \text{data})$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Point estimate</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The midpoint of the posterior; preferred over the mean when the posterior is asymmetric</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
+                <td style="padding:0.65rem 0.75rem; font-weight:600; color:var(--blue-text);">Credible interval</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$P(\theta \in [a, b] \mid \text{data}) = 0.95$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Confidence interval</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The parameter falls within this range with 95% posterior probability; a direct probabilistic statement the confidence interval does not afford</td>
+              </tr>
+              <tr>
+                <td style="padding:0.65rem 0.75rem; font-weight:600; color:var(--blue-text);">Posterior tail probability</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">$2 \times \min(P(\theta &lt; 0 \mid \text{data}),\; P(\theta &gt; 0 \mid \text{data}))$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">p-value</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The posterior probability that the parameter is on the wrong side of zero; small values indicate a credible non-zero effect</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          In practice, the posterior mean is the most commonly reported point estimate, with the
+          95% credible interval as the accompanying measure of uncertainty. The posterior tail
+          probability serves as the Bayesian analogue to hypothesis testing: rather than asking
+          whether an effect is statistically significant, we ask how much of the posterior
+          distribution sits on the wrong side of zero.
         </p>
 
         <p>
-          For $\hat{\beta}_1$, the posterior distribution tells us not just where the treatment
-          effect probably is, but how certain we are about it, and how that certainty was shaped by
-          both the data and our prior beliefs. If the prior was weak and the data were informative,
-          the posterior will be tight and centred on the likelihood. If the data were sparse, the
-          prior will have pulled the posterior toward our prior expectations.
+          The child-level random effects $u_j$ get the same treatment. Recall that in the
+          multilevel model, the BLUP for each child was a single number. We can interpret this as
+          a best guess at their offset, with all the uncertainty quietly thrown away.
         </p>
 
         <p>
-          The child-level random effects $u_j$ also get full posteriors, not just BLUPs. The
-          shrinkage behaviour is similar — children with less data are pulled toward zero — but the
-          uncertainty in that shrinkage is now explicit and quantified, rather than being quietly
-          absorbed into a point prediction.
+          Hierarchical Bayes embraces the uncertainty in each child-level random effect. Each
+          child gets a full posterior over their $u_j$, so the shrinkage is still there (i.e.
+          sparse data still gets pulled toward zero), but now we can actually see how uncertain we
+          are about it. You can think of it as children with only one or two observations getting
+          a wide, honest posterior, telling us that we really do not know where this child sits.
+          (Or recall from Section 2.4: we do not really know how sweet or tart this orange is.)
         </p>
 
         <hr>
@@ -316,12 +362,12 @@
               <tr style="border-bottom:1px solid var(--border);">
                 <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
-                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The joint posterior $p(\beta_0, \beta_1, \tau, \sigma, u_j \mid \text{data}) \propto p(\text{data} \mid \ldots) \times p(\beta_0, \beta_1, \tau, \sigma)$. The goal is to characterise this surface, not optimise a scalar.</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Bayes' theorem, which prescribes the uniquely optimal combination of prior and likelihood. The full posterior $p(\beta_0, \beta_1, \tau, \sigma, u_j \mid \text{data}) = p(\text{data} \mid \ldots) \times p(\beta_0, \beta_1, \tau, \sigma) \;/\; p(\text{data})$.</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
                 <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The formula that maps data to estimates</td>
-                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Posterior means or medians as point estimates; 95% credible intervals for uncertainty. Child-level random effects have full posteriors, with shrinkage that is explicit and quantified.</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">A choice of posterior summary: MAP (mode), posterior mean, posterior median, credible interval, or posterior tail probability. Child-level random effects receive full posteriors, with shrinkage that is explicit and quantified.</td>
               </tr>
               <tr>
                 <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Solver</td>
