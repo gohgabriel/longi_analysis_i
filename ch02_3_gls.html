@@ -81,6 +81,11 @@
         If two observations from the same child are very similar to each other, treating them as two independent pieces of evidence overstates how much you actually know. $\Sigma^{-1}$ corrects for that by down-weighting redundant information.
       </aside>
 
+      <aside class="margin-note amber" data-ref="ref-reml-gls">
+        <span class="note-label">Why $n-1$, not $n$</span>
+        Think of the humble sample variance. If you knew the true mean, you would divide by $n$. Because you have to estimate the mean from the same data, you divide by $n-1$ instead. REML is that same correction, generalised to a whole covariance matrix.
+      </aside>
+
       <aside class="margin-note green" data-ref="ref-blue">
         <span class="note-label">Gauss–Markov for GLS</span>
         When $\Sigma$ is correctly specified, $\hat{\beta}_{GLS}$ is BLUE — the Best Linear Unbiased Estimator. The same Gauss-Markov guarantee OLS had, but now valid for correlated data.
@@ -248,6 +253,45 @@
           correlated with others are adjusted so they do not effectively get counted twice.
         </p>
 
+        <p>
+          That weighted RSS is really the easy version of a slightly bigger idea. Under normally
+          distributed errors, minimising it is the same as maximising a <em>likelihood</em> — a
+          single score for how well a given $\beta$ and $\Sigma$ explain the data:
+        </p>
+
+        $$\ell(\beta, \Sigma) = -\tfrac{1}{2}\Big[(y - X\beta)^\top \Sigma^{-1}(y - X\beta) + \log|\Sigma|\Big]$$
+
+        <p>
+          The first term inside the brackets is exactly the weighted RSS we just wrote. The
+          second, $\log|\Sigma|$, is bookkeeping: it stops the model from cheating by inflating
+          $\Sigma$ to make the residuals look artificially small. For a <em>fixed</em> $\Sigma$,
+          maximising this likelihood and minimising the weighted RSS are the same thing — which is
+          why, up to this point, we have been able to talk only about the RSS and get away with it.
+        </p>
+
+        <p>
+          <span id="ref-reml-gls"></span>There is, however, a subtlety hiding in the fact that we do not actually know $\Sigma$.
+          As the Parameters section noted, we have to estimate it from the very same data we use to
+          estimate $\beta$. Whenever you estimate variance from data that has also been used to
+          estimate a mean, you underestimate that variance a little. So
+          plain maximum likelihood hands us a $\Sigma$ that is biased slightly too small, and the
+          bias is worst exactly when you have the least data to spare.
+        </p>
+
+        <p>
+          The fix is called <strong>Restricted Maximum Likelihood</strong>, or REML. It adjusts
+          the likelihood to account for the information already spent on $\beta$, by adding a
+          correction term:
+        </p>
+
+        $$\ell_{\text{REML}}(\Sigma) = \ell(\hat\beta, \Sigma) - \tfrac{1}{2}\log\big|X^\top \Sigma^{-1} X\big|$$
+
+        <p>
+          The extra $-\tfrac{1}{2}\log|X^\top \Sigma^{-1} X|$ is that degrees-of-freedom correction
+          made explicit. The payoff is a less biased $\Sigma$, and therefore more honest standard
+          errors. Most functions like <code>gls()</code> in R will use this by default.
+        </p>
+
         <hr>
 
         <h2>Estimator</h2>
@@ -302,10 +346,10 @@
           In practice, this is handled iteratively using the
           Expectation-Maximisation (EM) algorithm. The algorithm starts with an initial guess for
           $\Sigma$, uses it to estimate $\hat{\beta}_{GLS}$, then uses the residuals from that
-          estimate to update $\Sigma$, then re-estimates $\hat{\beta}_{GLS}$, and so on — cycling
-          back and forth until the estimates stop changing. This is sometimes called
-          <em>Feasible GLS</em> (FGLS), to distinguish it from the idealised case where $\Sigma$
-          is somehow known ahead of time.
+          estimate to update $\Sigma$ (via the REML criterion above), then re-estimates
+          $\hat{\beta}_{GLS}$, and so on — cycling back and forth until the estimates stop
+          changing. This is sometimes called <em>Feasible GLS</em> (FGLS), to distinguish it from
+          the idealised case where $\Sigma$ is somehow known ahead of time.
         </p>
 
         <p>
@@ -343,7 +387,7 @@
               <tr style="border-bottom:1px solid var(--border);">
                 <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Criterion</td>
                 <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">The scoring rule that defines "good" estimation</td>
-                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise weighted RSS: $\sum (y_i - \hat{y}_i)^\top \Sigma^{-1} (y_i - \hat{y}_i)$</td>
+                <td style="padding:0.65rem 0.75rem; color:var(--text-muted);">Minimise weighted RSS: $\sum (y_i - \hat{y}_i)^\top \Sigma^{-1} (y_i - \hat{y}_i)$ — the easy form of the GLS likelihood. Estimated by default via REML, which corrects the small-sample downward bias in $\Sigma$.</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border); background:var(--surface-2);">
                 <td style="padding:0.65rem 0.75rem; font-weight:600; white-space:nowrap; color:var(--blue-text);">Estimator</td>
@@ -358,7 +402,7 @@
             </tbody>
           </table>
         </div>
-        
+
         <p>
           GLS is a genuine improvement over naïve OLS for longitudinal data. By explicitly
           modelling the within-person correlation, it produces standard errors we can actually
