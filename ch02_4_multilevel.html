@@ -220,19 +220,55 @@
         <h2><span id="ref-reml"></span>Criterion</h2>
 
         <p>
-          Like GLS, multilevel models are fitted by maximising a likelihood — roughly speaking,
-          finding the parameter values that make the data we observed as probable as possible. And
-          like GLS, the preferred version is <strong>REML</strong>, or Restricted Maximum
-          Likelihood.
+          In GLS, we minimised the weighted residual sum of squares, which under normally
+          distributed errors is equivalent to Maximum Likelihood (ML). (You can think of the
+          Weighted RSS as being an easier version of the equation below.)
         </p>
 
         <p>
-          The reason comes down to a subtle but important bias. When you estimate $\beta_0$ and
-          $\beta_1$ first, you use up some of the information in the data — some degrees of
-          freedom — before you even get to estimating $\tau^2$ and $\sigma^2$. Plain Maximum
-          Likelihood ignores this and tends to underestimate the variance components as a result,
-          particularly in small samples. REML corrects for it, giving you variance estimates that
-          are less biased.
+          The GLS version of the Maximum Likelihood criterion — with $\Sigma$ and $\beta$ both
+          free — is:
+        </p>
+
+        $$\ell(\beta, \Sigma) = -\tfrac{1}{2}\Big[(y - X\beta)^\top \Sigma^{-1}(y - X\beta) + \log|\Sigma|\Big]$$
+
+        <p>
+          But in GLS, we are actually cheating! We do not actually estimate $\beta$ and $\Sigma$
+          at the same time. We always estimate or guess random values of $\Sigma$ first, and then
+          pretend like it is already known to go estimate $\beta$ next. This allows GLS to
+          'sidestep' the major weakness of the maximum likelihood criterion.
+        </p>
+
+        <p>
+          In MLM, the variance components $\tau^2$ and $\sigma^2$ are estimated jointly with
+          $\beta$ from the same likelihood. That creates a problem. This is the MLM version of
+          Maximum Likelihood:
+        </p>
+
+        $$\ell(\beta, \tau^2, \sigma^2) = -\tfrac{1}{2}\Big[(y - X\beta)^\top V^{-1}(y - X\beta) + \log|V|\Big]$$
+
+        <p>
+          When we use ML to optimise over $\tau^2$ and $\sigma^2$, it treats $\hat\beta$ as if it
+          were known exactly. But it isn't! In MLM, we do not use the same trick as in GLS, so we
+          are also estimating $\beta$ from the same data, which already consumes a degree of
+          freedom. Thus, our estimated $\tau^2$ and $\sigma^2$ are going to be underestimated
+          because we have one more degree of freedom that we don't actually have.
+        </p>
+
+        <p>
+          To solve this issue, MLM instead uses <strong>Restricted Maximum Likelihood
+          (REML)</strong>. REML maximises a likelihood that integrates out $\hat\beta$, so the
+          fixed effects are removed from the picture entirely before the variance components are
+          estimated:
+        </p>
+
+        $$\ell_{\text{REML}}(\tau^2, \sigma^2) = \ell(\hat\beta, \tau^2, \sigma^2) - \tfrac{1}{2}\log\big|X^\top V^{-1} X\big|$$
+
+        <p>
+          The extra term $-\tfrac{1}{2}\log|X^\top V^{-1}X|$ is the degrees-of-freedom correction
+          made explicit — it is penalising for the information spent on $\beta$. The practical
+          consequence is less biased estimates of $\tau^2$ and $\sigma^2$, particularly in small
+          samples where it matters the most.
         </p>
 
         <hr>
